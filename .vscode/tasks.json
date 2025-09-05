@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Test ICM Program",
+			"type": "shell",
+			"command": "cd \"\\wsl.localhost\\Ubuntu\\home\\orkarfabianthewise\\code\\icm-program\" && anchor test",
+			"group": "test",
+			"isBackground": false,
+			"problemMatcher": [
+				"$tsc"
+			]
+		}
+	]
+}
