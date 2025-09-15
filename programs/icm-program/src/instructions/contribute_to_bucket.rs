@@ -1,10 +1,10 @@
+use crate::error::ErrorCode;
+use crate::state::{Bucket, BucketStatus, ContributionRecord};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token_interface::{Mint, TokenAccount, TokenInterface, Transfer, transfer},
+    token_interface::{transfer, Mint, TokenAccount, TokenInterface, Transfer},
 };
-use crate::state::{Bucket, ContributionRecord, BucketStatus};
-use crate::error::ErrorCode;
 
 #[derive(Accounts)]
 #[instruction(bucket_name: String, token_mint: Pubkey)]
@@ -19,7 +19,7 @@ pub struct ContributeToBucket<'info> {
         init_if_needed,
         payer = contributor,
         // contribution_record: discriminator (8) + contributor (32) + bucket (32) + token_mint (32) + amount (8) + timestamp (8) = 120
-        space = 8 + 32 + 32 + 32 + 8 + 8,
+        space = 8 + ContributionRecord::INIT_SPACE,
         seeds = [b"contribution", bucket.key().as_ref(), contributor.key().as_ref(), token_mint.key().as_ref()],
         bump
     )]
@@ -28,7 +28,7 @@ pub struct ContributeToBucket<'info> {
         init_if_needed,
         payer = contributor,
         // pool_contribution: discriminator (8) + pool_id (32) + contributor (32) + contribution_amount (8) + pool_share_percentage (8) + claimed (1) = 89
-        space = 8 + 32 + 32 + 8 + 8 + 1,
+        space = 8 + PoolContribution::INIT_SPACE,
         seeds = [b"pool_contribution", bucket.key().as_ref(), contributor.key().as_ref(), token_mint.key().as_ref()],
         bump
     )]
@@ -91,7 +91,10 @@ pub fn contribute_to_bucket_handler(
         contribution_record.amount = amount;
         contribution_record.timestamp = clock.unix_timestamp;
         // Increment contributor_count for new contributor
-        bucket.contributor_count = bucket.contributor_count.checked_add(1).ok_or(ErrorCode::Overflow)?;
+        bucket.contributor_count = bucket
+            .contributor_count
+            .checked_add(1)
+            .ok_or(ErrorCode::Overflow)?;
     } else {
         // Add to existing contribution
         contribution_record.amount = contribution_record

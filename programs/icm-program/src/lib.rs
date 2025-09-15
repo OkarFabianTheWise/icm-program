@@ -11,7 +11,7 @@ pub use state::*;
 pub use error::*;
 pub use constants::*;
 
-declare_id!("BXwnU4VFAoQ3ES4SXZnXdMGsDufRrWwyrmXUNLhCH9JT");
+declare_id!("CoU82ZtuPfki7PQuDFJHKHngaKcQDdMayKyiWLG6tc8a");
 
 #[program]
 mod icm_program {

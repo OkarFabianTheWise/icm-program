@@ -1,7 +1,7 @@
 // state.rs
 use anchor_lang::prelude::*;
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum PoolPhase {
     Raising,
     Trading,
@@ -9,9 +9,12 @@ pub enum PoolPhase {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct Bucket {
     pub creator: Pubkey,
+    #[max_len(50)]
     pub name: String,
+    #[max_len(100)]
     pub token_mints: Vec<Pubkey>,
     pub contribution_deadline: i64,
     pub trading_deadline: i64,
@@ -27,6 +30,7 @@ pub struct Bucket {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct ContributionRecord {
     pub contributor: Pubkey,
     pub bucket: Pubkey,
@@ -35,7 +39,7 @@ pub struct ContributionRecord {
     pub timestamp: i64,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum BucketStatus {
     Raising,
     Trading,
@@ -49,10 +53,12 @@ impl Bucket {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct TradingPool {
     pub pool_id: Pubkey,
     pub pool_bump: u8,
     pub creator: Pubkey,
+    #[max_len(100)]
     pub token_bucket: Vec<Pubkey>,
     pub target_amount: u64,
     pub min_contribution: u64,
@@ -67,6 +73,7 @@ pub struct TradingPool {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct PoolContribution {
     pub pool_id: Pubkey,
     pub contributor: Pubkey,
@@ -76,6 +83,7 @@ pub struct PoolContribution {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct TradeRecord {
     pub pool_id: Pubkey,
     pub trade_id: u64,
@@ -88,7 +96,7 @@ pub struct TradeRecord {
     pub success: bool,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpaces)]
 pub enum TradeType {
     BuyToken,
     SellToken,
