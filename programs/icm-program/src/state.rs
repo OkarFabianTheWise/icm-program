@@ -96,7 +96,7 @@ pub struct TradeRecord {
     pub success: bool,
 }
 
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpaces)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, PartialEq, Eq, InitSpace)]
 pub enum TradeType {
     BuyToken,
     SellToken,

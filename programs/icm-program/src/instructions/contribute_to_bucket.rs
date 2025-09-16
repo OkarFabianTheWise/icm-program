@@ -1,5 +1,6 @@
 use crate::error::ErrorCode;
 use crate::state::{Bucket, BucketStatus, ContributionRecord};
+use crate::PoolContribution;
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,

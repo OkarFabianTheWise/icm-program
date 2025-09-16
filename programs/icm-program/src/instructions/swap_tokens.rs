@@ -4,7 +4,6 @@ use jupiter_interface::{
     instructions::{RouteIxArgs, RouteKeys},
     typedefs::RoutePlanStep,
 };
-// use std::str::FromStr;
 use crate::{constants::*, error::ErrorCode, state::*};
 
 #[derive(Accounts)]
@@ -16,7 +15,7 @@ pub struct SwapTokens<'info> {
         seeds = [b"trade_record", bucket.key().as_ref(), creator.key().as_ref()],
         bump
     )]
-    pub trade_record: Account<'info, crate::state::TradeRecord>,
+    pub trade_record: Account<'info, TradeRecord>,
     #[account(mut)]
     pub creator: Signer<'info>,
 

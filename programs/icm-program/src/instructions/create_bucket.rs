@@ -1,6 +1,5 @@
 use crate::state::{Bucket, TradingPool};
 use anchor_lang::prelude::*;
-// use crate::error::ErrorCode;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
 
