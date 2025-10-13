@@ -12,6 +12,6 @@ pub fn close_bucket_util(
     bucket.closed_at = now;
     trading_pool.phase = PoolPhase::Closed;
     trading_pool.trading_end_time = Some(now);
-    creator_profile.successful_pools += 1;
-    creator_profile.total_volume_managed += bucket.raised_amount;
+    creator_profile.successful_pools.checked_add(1).unwrap();
+    creator_profile.total_volume_managed.checked_add(bucket.raised_amount).unwrap();
 }

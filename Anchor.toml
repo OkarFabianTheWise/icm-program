@@ -5,7 +5,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-icm_program = "7K5cc9n4QKV4ojDVB6fvtLmueGRGdczn6b6JiRMAkbtC"
+icm_program = "3B4MZ2emBqufVyzfCCcNrvjeJVE4JhnrAEyh5jsBpSaQ"
 
 [registry]
 url = "https://api.apr.dev"

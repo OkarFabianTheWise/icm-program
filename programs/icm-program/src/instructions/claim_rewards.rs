@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, TokenAccount, Transfer};
+use anchor_spl::token::Token;
 use anchor_spl::associated_token::AssociatedToken;
 use crate::state::{Bucket, ContributionRecord, BucketStatus, ProgramState};
 use crate::utils::close_bucket_util;
@@ -9,52 +10,68 @@ use crate::error::ErrorCode;
 #[instruction(bucket_name: String, token_mint: Pubkey)]
 pub struct ClaimRewards<'info> {
     #[account(
+        //@audit , bucket was not declared with mutable status and is used in code as
+        // borrowed mutable reference in programs/icm-program/src/utils.rs::close_bucket_util()
+        // bucket is used as a mutable reference in the code, put the mut for best practices to 
+        // changes are made onchain
+        mut,
         seeds = [b"bucket", bucket_name.as_bytes(), bucket.creator.as_ref()],
         bump = bucket.bump
     )]
     pub bucket: Account<'info, Bucket>,
+    
     #[account(
         seeds = [b"contribution", bucket.key().as_ref(), contributor.key().as_ref(), token_mint.as_ref()],
         bump
     )]
     pub contribution_record: Account<'info, ContributionRecord>,
+
     #[account(
         mut,
         seeds = [b"pool_contribution", bucket.key().as_ref(), contributor.key().as_ref(), token_mint.as_ref()],
         bump
     )]
     pub pool_contribution: Account<'info, crate::state::PoolContribution>,
+
     #[account(
         mut,
         seeds = [b"trading_pool", bucket.name.as_bytes(), bucket.creator.as_ref()],
         bump
     )]
     pub trading_pool: Account<'info, crate::state::TradingPool>,
+    
     #[account(
         mut,
         seeds = [b"creator_profile", bucket.creator.as_ref()],
         bump
     )]
     pub creator_profile: Account<'info, crate::state::CreatorProfile>,
+
     #[account(mut)]
     pub contributor_token_account: Account<'info, TokenAccount>,
+    
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
+    
     #[account(
         mut,
         seeds = [b"program_state"],
         bump = program_state.bump
     )]
     pub program_state: Account<'info, ProgramState>,
+    
     #[account(
         mut,
         associated_token::mint = program_state.usdc_mint,
         associated_token::authority = program_state,
     )]
     pub fee_vault: Account<'info, TokenAccount>,
+    
     #[account(mut)]
     pub contributor: Signer<'info>,
+
     pub token_program: Program<'info, Token>,
+
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
