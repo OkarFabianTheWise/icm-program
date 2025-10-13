@@ -1,6 +1,9 @@
 use anchor_lang::prelude::*;
 use std::str::FromStr;
 
+// USDC Mint Address (mainnet, update if needed for devnet/testnet)
+pub const USDC_MINT: &str = "2RgRJx3z426TMCL84ZMXTRVCS5ee7iGVE4ogqcUAd3tg";
+
 pub const VAULT_SEED: &[u8] = b"vault";
 
 pub fn jupiter_program_id() -> Pubkey {

@@ -5,13 +5,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-icm_program = "CoU82ZtuPfki7PQuDFJHKHngaKcQDdMayKyiWLG6tc8a"
+icm_program = "7K5cc9n4QKV4ojDVB6fvtLmueGRGdczn6b6JiRMAkbtC"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

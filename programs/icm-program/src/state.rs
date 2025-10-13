@@ -14,7 +14,7 @@ pub struct Bucket {
     pub creator: Pubkey,
     #[max_len(50)]
     pub name: String,
-    #[max_len(100)]
+    #[max_len(3)]
     pub token_mints: Vec<Pubkey>,
     pub contribution_deadline: i64,
     pub trading_deadline: i64,
@@ -58,7 +58,7 @@ pub struct TradingPool {
     pub pool_id: Pubkey,
     pub pool_bump: u8,
     pub creator: Pubkey,
-    #[max_len(100)]
+    #[max_len(3)]
     pub token_bucket: Vec<Pubkey>,
     pub target_amount: u64,
     pub min_contribution: u64,
@@ -104,6 +104,7 @@ pub enum TradeType {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct CreatorProfile {
     pub creator: Pubkey,
     pub pools_created: u32,
@@ -111,4 +112,16 @@ pub struct CreatorProfile {
     pub total_volume_managed: u64,
     pub reputation_score: u32,
     pub created_at: i64,
+}
+
+#[account]
+#[derive(InitSpace)]
+pub struct ProgramState {
+    pub owner: Pubkey,
+    pub fee_rate_bps: u16, // Fee rate in basis points (50 = 0.5%)
+    pub usdc_mint: Pubkey,
+    pub total_fees_collected: u64,
+    pub initialized: bool,
+    pub created_at: i64,
+    pub bump: u8,
 }

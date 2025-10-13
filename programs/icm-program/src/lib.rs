@@ -5,13 +5,15 @@ pub mod instructions;
 pub mod state;
 pub mod error;
 pub mod constants;
+pub mod utils;
+pub use utils::*;
 
 pub use instructions::*;
 pub use state::*;
 pub use error::*;
 pub use constants::*;
 
-declare_id!("CoU82ZtuPfki7PQuDFJHKHngaKcQDdMayKyiWLG6tc8a");
+declare_id!("7K5cc9n4QKV4ojDVB6fvtLmueGRGdczn6b6JiRMAkbtC");
 
 #[program]
 mod icm_program {
@@ -24,8 +26,8 @@ mod icm_program {
         ctx: Context<CreateBucket>,
         name: String,
         token_mints: Vec<Pubkey>,
-        contribution_window_days: u32,
-        trading_window_days: u32,
+        contribution_window_minutes: u32,
+        trading_window_minutes: u32,
         creator_fee_percent: u16,
         target_amount: u64,
         min_contribution: u64,
@@ -36,8 +38,8 @@ mod icm_program {
             ctx,
             name,
             token_mints,
-            contribution_window_days,
-            trading_window_days,
+            contribution_window_minutes,
+            trading_window_minutes,
             creator_fee_percent,
             target_amount,
             min_contribution,
@@ -49,10 +51,9 @@ mod icm_program {
     pub fn contribute_to_bucket(
         ctx: Context<ContributeToBucket>,
         bucket_name: String,
-        token_mint: Pubkey,
         amount: u64,
     ) -> Result<()> {
-        contribute_to_bucket::contribute_to_bucket_handler(ctx, bucket_name, token_mint, amount)
+        contribute_to_bucket::contribute_to_bucket_handler(ctx, bucket_name, amount)
     }
 
     pub fn start_trading(ctx: Context<StartTrading>, bucket_name: String) -> Result<()> {
@@ -65,20 +66,31 @@ mod icm_program {
 
     pub fn claim_rewards(
         ctx: Context<ClaimRewards>,
-        token_mint: Pubkey,
     ) -> Result<()> {
-        claim_rewards::claim_rewards_handler(ctx, token_mint)
+        claim_rewards::claim_rewards_handler(ctx)
     }
     
     pub fn swap_tokens(
         ctx: Context<SwapTokens>,
-        route_plan: Vec<u8>,
         in_amount: u64,
         quoted_out_amount: u64,
         slippage_bps: u16,
-        platform_fee_bps: u16,
     ) -> Result<()> {
-        swap_tokens::swap_tokens_handler(ctx, route_plan, in_amount, quoted_out_amount, slippage_bps, platform_fee_bps)
+        swap_tokens::swap_tokens_handler(ctx, in_amount, quoted_out_amount, slippage_bps)
+    }
+
+    pub fn initialize_program(
+        ctx: Context<InitializeProgram>,
+        fee_rate_bps: u16,
+    ) -> Result<()> {
+        initialize_program::initialize_program_handler(ctx, fee_rate_bps)
+    }
+
+    pub fn withdraw_fees(
+        ctx: Context<WithdrawFees>,
+        amount: Option<u64>,
+    ) -> Result<()> {
+        withdraw_fees::withdraw_fees_handler(ctx, amount)
     }
 }
 

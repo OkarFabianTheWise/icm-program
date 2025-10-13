@@ -6,8 +6,8 @@ pub fn initialize_bucket(
     bucket: &mut Account<Bucket>,
     name: &String,
     token_mints: &mut Vec<Pubkey>,
-    contribution_window_days: u32,
-    trading_window_days: u32,
+    contribution_window_minutes: u32,
+    trading_window_minutes: u32,
     creator_fee_percent: u16,
     management_fee: u16,
     creator: &Signer,
@@ -17,8 +17,8 @@ pub fn initialize_bucket(
     bucket.creator = creator.key();
     bucket.name = name.clone();
     bucket.token_mints = token_mints.clone();
-    bucket.contribution_deadline = now + (contribution_window_days as i64 * 86400);
-    bucket.trading_deadline = bucket.contribution_deadline + (trading_window_days as i64 * 86400);
+    bucket.contribution_deadline = now + (contribution_window_minutes as i64 * 60);
+    bucket.trading_deadline = bucket.contribution_deadline + (trading_window_minutes as i64 * 60);
     bucket.creator_fee_percent = creator_fee_percent;
     bucket.status = BucketStatus::Raising;
     bucket.trading_started_at = 0;
@@ -44,7 +44,7 @@ pub fn initialize_trading_pool(
     target_amount: u64,
     min_contribution: u64,
     max_contribution: u64,
-    trading_window_days: u32,
+    trading_window_minutes: u32,
     management_fee: u16,
     now: i64,
     bump: u8,
@@ -56,7 +56,7 @@ pub fn initialize_trading_pool(
     trading_pool.target_amount = target_amount;
     trading_pool.min_contribution = min_contribution;
     trading_pool.max_contribution = max_contribution;
-    trading_pool.trading_duration = trading_window_days as u64 * 86400;
+    trading_pool.trading_duration = trading_window_minutes as u64 * 60;
     trading_pool.created_at = now;
     trading_pool.fundraising_deadline = bucket.contribution_deadline;
     trading_pool.trading_start_time = None;

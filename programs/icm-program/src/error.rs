@@ -2,15 +2,17 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum ErrorCode {
+    #[msg("Raydium CPI failed")]
+    RaydiumCpiFailed,
     #[msg("Bucket name is too long (max 64 characters)")]
     NameTooLong,
     #[msg("Must have at least 2 tokens")]
     InsufficientTokens,
     #[msg("Too many tokens (max 10)")]
     TooManyTokens,
-    #[msg("Invalid contribution window (1-30 days)")]
+    #[msg("Invalid contribution window (1 minute to 30 days)")]
     InvalidContributionWindow,
-    #[msg("Invalid trading window (1-180 days)")]
+    #[msg("Invalid trading window (1 minute to 180 days)")]
     InvalidTradingWindow,
     #[msg("Creator fee too high (max 20%)")]
     FeeTooHigh,
@@ -58,4 +60,10 @@ pub enum ErrorCode {
     ProfileAlreadyExists,
     #[msg("Profile does not exist for this creator")]
     ProfileDoesNotExist,
+    #[msg("Program not initialized")]
+    ProgramNotInitialized,
+    #[msg("Invalid mint address")]
+    InvalidMint,
+    #[msg("Insufficient funds")]
+    InsufficientFunds,
 }

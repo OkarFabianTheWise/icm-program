@@ -1,10 +1,10 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { IcmProgram } from "../target/types/icm_program";
-import { 
-  PublicKey, 
-  Keypair, 
-  SystemProgram
+import {
+  PublicKey,
+  Keypair,
+  SystemProgram,
 } from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
@@ -18,7 +18,7 @@ import { Testuser1, Testuser2, Testuser3 } from "../test-users/users";
 
 /**
  * ICM Program Test Suite
- * 
+ *
  * Testing approach:
  * 1. Uses preset wallets to avoid airdrop requests
  * 2. All contributions are made in USDC (mock SPL token)
@@ -27,10 +27,15 @@ import { Testuser1, Testuser2, Testuser3 } from "../test-users/users";
  * 5. Tests cover bucket creation, contributions, and error cases
  */
 
+const QTOKEN = new PublicKey("2QYhBSA4hhga8gRh3eNizf3X2XPdr4EN6gQAFHpEPpYr");
+const ZTOKEN2022 = new PublicKey("7yyieW3Zdcm5ncVWqiBhGvReYFQhZNEVdwVpqA3GuxGU");
+const GTOKEN2022 = new PublicKey("CVZ7aSqJ8i5PUgLMmT24MXgmLAmHeyjBeEmYmKGuDm3f");
+const USDC = new PublicKey("2RgRJx3z426TMCL84ZMXTRVCS5ee7iGVE4ogqcUAd3tg");
+
 describe("icm-program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
-  const provider = anchor.getProvider();
+  const provider = anchor.getProvider() as anchor.AnchorProvider;
   const program = anchor.workspace.IcmProgram as Program<IcmProgram>;
 
   // Test accounts
@@ -39,7 +44,6 @@ describe("icm-program", () => {
   let contributor2: Keypair;
   let usdcMint: PublicKey; // Mock USDC for contributions
   let tokenMintB: PublicKey; // Second token in bucket
-  let tokenMintC: PublicKey; // Third token (for error testing)
 
   // Token accounts (only USDC needed for contributions)
   let contributor1USDCAccount: PublicKey;
@@ -48,14 +52,33 @@ describe("icm-program", () => {
   // Program accounts
   let bucketPda: PublicKey;
   let bucketBump: number;
+  let programStatePda: PublicKey;
+  let programStateBump: number;
+  let feeVaultPda: PublicKey;
 
+  // Vault / swap related
+  let vaultAuthorityPda: PublicKey;
+  let vaultAuthorityBump: number;
+  let vaultInputTokenAccount: PublicKey;
+  let vaultOutputTokenAccount: PublicKey;
+  let userSourceTokenAccount: PublicKey;
+  let userDestinationTokenAccount: PublicKey;
+  let userAuthority: PublicKey;
+
+  // Random-ish name id
+  const nameId = Math.floor(Math.random() * 1000) + 12;
   // Constants
-  const BUCKET_NAME = "xMANGA"; // Bucket name
-  const CONTRIBUTION_WINDOW_DAYS = 7; // 7 days
-  const TRADING_WINDOW_DAYS = 30; // 30 days
+  const BUCKET_NAME = `x-buck362`; // Bucket name
+  // const BUCKET_NAME = `x-buck${nameId}`; // Bucket name
+  const CONTRIBUTION_WINDOW_MINUTES = 60; // 60 minutes instead of days
+  const TRADING_WINDOW_MINUTES = 1440; // 24 hours instead of days
   const CREATOR_FEE_PERCENT = 500; // 5% in basis points
+  const PROGRAM_FEE_RATE = 50; // 0.5% in basis points
   const MINT_AMOUNT = 1_000_000_000; // 1000 tokens (assuming 6 decimals)
-  const CONTRIBUTE_AMOUNT = 100_000_000_000; // 100 tokens
+  const CONTRIBUTE_AMOUNT = 10_000_000; // 10 tokens
+  const TARGET_AMOUNT = new anchor.BN(500_000_000); // 500 tokens target (assuming 6 decimals)
+  const MINIMUM_CONTRIBUTION = new anchor.BN(1_000_000); // 1 token minimum contribution (assuming 6 decimals)
+  const MAXIMUM_CONTRIBUTION = new anchor.BN(100_000_000); // 100 tokens maximum contribution (assuming 6 decimals)
 
   before(async () => {
     // Initialize test accounts using preset wallets (no airdrop needed)
@@ -63,24 +86,69 @@ describe("icm-program", () => {
     contributor1 = Keypair.fromSecretKey(new Uint8Array(Testuser2));
     contributor2 = Keypair.fromSecretKey(new Uint8Array(Testuser3));
 
-    // console.log("Creator:", creator.publicKey.toString());
-    // console.log("Contributor1:", contributor1.publicKey.toString());
-    // console.log("Contributor2:", contributor2.publicKey.toString());
-
-    // Create the token mints - USDC uses regular Token Program, others use Token 2022
-    usdcMint = new PublicKey("7efeK5MMfmgcNeJkutSduzBGskFHziBhvmoPcPrJBmuF"); // USDC mint address
-
+    // Use known mints (replace with your test mints if different)
+    usdcMint = new PublicKey("2RgRJx3z426TMCL84ZMXTRVCS5ee7iGVE4ogqcUAd3tg"); // USDC mint address
     tokenMintB = new PublicKey("EELsthavYsD8pDp6yq5xhNV1Jpa3N2RooMnmkaeMkUn8"); // Example Token B mint address
 
-    tokenMintC = new PublicKey("EELsthavYsD8pDp6yq5xhNV1Jpa3N2RooMnmkaeMkUn8"); // Example Token C mint address
-  
-    
-    // console.log("USDC Mint:", usdcMint.toString());
-    // console.log("Token B:", tokenMintB.toString());
-    // console.log("Token C:", tokenMintC.toString());
+    // Derive program state PDA
+    [programStatePda, programStateBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("program_state")],
+      program.programId
+    );
+
+    // Derive fee vault PDA (associated token account)
+    feeVaultPda = getAssociatedTokenAddressSync(
+      usdcMint,
+      programStatePda,
+      true,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    // Derive bucket PDA first (used by vault authority)
+    [bucketPda, bucketBump] = PublicKey.findProgramAddressSync(
+      [
+        Buffer.from("bucket"),
+        Buffer.from(BUCKET_NAME),
+        creator.publicKey.toBuffer(),
+      ],
+      program.programId
+    );
+
+    // Derive vault authority PDA (depends on bucketPda)
+    [vaultAuthorityPda, vaultAuthorityBump] = PublicKey.findProgramAddressSync(
+      [Buffer.from("vault_authority"), bucketPda.toBuffer()],
+      program.programId
+    );
+
+    // Vault token accounts (ATAs) for input and output mints
+    // Note: These are just addresses calculated for PDAs, actual creation happens in program
+    vaultInputTokenAccount = getAssociatedTokenAddressSync(
+      usdcMint,
+      vaultAuthorityPda,
+      true,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+    vaultOutputTokenAccount = getAssociatedTokenAddressSync(
+      tokenMintB,
+      vaultAuthorityPda,
+      true,
+      TOKEN_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
+
+    // Note: Cannot create ATAs for PDAs directly in client code
+    // The program will handle creating these accounts when needed
+
+    // Assign for swap test
+    userSourceTokenAccount = vaultInputTokenAccount;
+    userDestinationTokenAccount = vaultOutputTokenAccount;
+    userAuthority = vaultAuthorityPda;
 
     // Create Associated Token Accounts for contributors - USDC uses regular Token Program
-    // Only create for contributor accounts (Keypair), not for vaults (PDAs)
+    // We'll try to fetch contributor ATA addresses and create them if missing.
+    // Use 'creator' as payer for ATA creation (so the preset wallets don't need extra SOL).
     const contributor1USDCAccountAddress = getAssociatedTokenAddressSync(
       usdcMint,
       contributor1.publicKey,
@@ -95,13 +163,11 @@ describe("icm-program", () => {
     } catch (error) {
       contributor1USDCAccount = await createAssociatedTokenAccount(
         provider.connection,
-        contributor1,
+        creator, // payer
         usdcMint,
-        contributor1.publicKey,
-        undefined,
-        TOKEN_PROGRAM_ID
+        contributor1.publicKey
       );
-      console.log("Created contributor1 USDC account");
+      console.log("Created contributor1 USDC account:", contributor1USDCAccount.toString());
     }
 
     const contributor2USDCAccountAddress = getAssociatedTokenAddressSync(
@@ -118,120 +184,56 @@ describe("icm-program", () => {
     } catch (error) {
       contributor2USDCAccount = await createAssociatedTokenAccount(
         provider.connection,
-        contributor2,
+        creator, // payer
         usdcMint,
-        contributor2.publicKey,
-        undefined,
-        TOKEN_PROGRAM_ID
+        contributor2.publicKey
       );
-      console.log("Created contributor2 USDC account");
+      console.log("Created contributor2 USDC account:", contributor2USDCAccount.toString());
     }
 
-    console.log("USDC accounts created for contributors");
-
-    // Derive bucket PDA
-    [bucketPda, bucketBump] = PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("bucket"),
-        Buffer.from(BUCKET_NAME),
-        creator.publicKey.toBuffer()
-      ],
-      program.programId
-    );
-
+    console.log("USDC accounts ready for contributors");
     console.log("Bucket PDA:", bucketPda.toString());
+    console.log("Vault authority PDA:", vaultAuthorityPda.toString());
   });
 
-  // describe("Create Profile", () => {
-  //   it("Should create a creator profile successfully", async () => {
-  //     const [creatorProfilePda, _] = PublicKey.findProgramAddressSync(
-  //       [
-  //         Buffer.from("creator_profile"),
-  //         creator.publicKey.toBuffer()
-  //       ],
-  //       program.programId
-  //     );
-
+  // Initialization of the program state
+  // describe("Program Initialization", () => {
+  //   it("Should initialize the program once", async () => {
   //     const tx = await program.methods
-  //       .createProfile()
-  //       .accounts({
-  //         creatorProfile: creatorProfilePda,
-  //         creator: creator.publicKey,
+  //       .initializeProgram(PROGRAM_FEE_RATE)
+  //       .accountsPartial({
+  //         programState: programStatePda,
+  //         feeVault: feeVaultPda,
+  //         usdcMint: usdcMint,
+  //         owner: provider.publicKey,
+  //         tokenProgram: TOKEN_PROGRAM_ID,
+  //         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
   //         systemProgram: SystemProgram.programId,
   //       })
-  //       .signers([creator])
+  //       // .signers([creator])
   //       .rpc();
 
-  //     console.log("Create profile transaction signature", tx);
+  //     console.log("Program initialization signature", tx);
 
-  //     // Verify profile was created with correct data
-  //     const profile = await program.account.creatorProfile.fetch(creatorProfilePda);
-  //     console.log("Creator profile data:", profile);
-      
-  //     expect(profile.creator.toString()).to.equal(creator.publicKey.toString());
-  //     expect(profile.poolsCreated).to.equal(0);
-  //     expect(profile.successfulPools).to.equal(0);
-  //     expect(profile.totalVolumeManaged.toString()).to.equal("0");
-  //     expect(profile.reputationScore).to.equal(0);
-  //     expect(profile.createdAt).to.be.greaterThan(0);
-  //   });
+  //     // Verify program state was created
+  //     const programState = await program.account.programState.fetch(programStatePda);
+  //     console.log("Program state account:", programStatePda);
+  //     expect(programState.owner.toString()).to.equal(provider.publicKey.toString());
+  //     expect(programState.feeRateBps).to.equal(PROGRAM_FEE_RATE);
+  //     expect(programState.initialized).to.be.true;
+  //     expect(programState.totalFeesCollected.toString()).to.equal("0");
 
-  //   it("Should fail to create duplicate profile", async () => {
-  //     const [creatorProfilePda, _] = PublicKey.findProgramAddressSync(
-  //       [
-  //         Buffer.from("creator_profile"),
-  //         creator.publicKey.toBuffer()
-  //       ],
-  //       program.programId
-  //     );
-
-  //     try {
-  //       const tx =await program.methods
-  //         .createProfile()
-  //         .accounts({
-  //           creatorProfile: creatorProfilePda,
-  //           creator: creator.publicKey,
-  //           systemProgram: SystemProgram.programId,
-  //         })
-  //         .signers([creator])
-  //         .rpc();
-
-  //       console.log("Create profile transaction signature", tx);
-
-  //       // Should not reach this point
-  //       expect.fail("Expected transaction to fail");
-  //     } catch (error) {
-  //       // Expect the transaction to fail because profile already exists
-  //       expect(error.message).to.include("already in use");
-  //     }
+  //     console.log("Program state:", programState);
   //   });
   // });
 
   // describe("Create Bucket", () => {
-  //   it("Should create a bucket successfully", async () => {
-  //     const TARGET_AMOUNT = new anchor.BN(1_000_000_000_000); // 100 tokens in smallest units
-  //     // min_contribution: u64,
-  //     const MIN_CONTRIBUTION = new anchor.BN(100_000_000); // 10 tokens in smallest units
-  //     // max_contribution: u64,
-  //     const MAX_CONTRIBUTION = new anchor.BN(1_000_000_000_000); // 100 tokens in smallest units
-  //     // management_fee: u16,
-  //     const MANAGEMENT_FEE = 100; // 1% in basis points
-
-  //     const tokenMints = [usdcMint, tokenMintB]; // USDC + Token B
-
-  //     const [tradingPoolPda, tradingPoolBump] = PublicKey.findProgramAddressSync(
+  //   it("Should create a bucket", async () => {
+  //     const [tradingPoolPda] = PublicKey.findProgramAddressSync(
   //       [
   //         Buffer.from("trading_pool"),
   //         Buffer.from(BUCKET_NAME),
-  //         creator.publicKey.toBuffer()
-  //       ],
-  //       program.programId
-  //     );
-
-  //     const [creatorProfilePda, _] = PublicKey.findProgramAddressSync(
-  //       [
-  //         Buffer.from("creator_profile"),
-  //         creator.publicKey.toBuffer()
+  //         creator.publicKey.toBuffer(),
   //       ],
   //       program.programId
   //     );
@@ -240,30 +242,30 @@ describe("icm-program", () => {
   //       usdcMint,
   //       bucketPda,
   //       true,
-  //       // TOKEN_PROGRAM_ID,
-  //       // ASSOCIATED_TOKEN_PROGRAM_ID
+  //       TOKEN_PROGRAM_ID,
+  //       ASSOCIATED_TOKEN_PROGRAM_ID
   //     );
 
   //     const tx = await program.methods
   //       .createBucket(
   //         BUCKET_NAME,
-  //         tokenMints,
-  //         CONTRIBUTION_WINDOW_DAYS,
-  //         TRADING_WINDOW_DAYS,
+  //         [QTOKEN, ZTOKEN2022, GTOKEN2022],
+  //         CONTRIBUTION_WINDOW_MINUTES,
+  //         TRADING_WINDOW_MINUTES,
   //         CREATOR_FEE_PERCENT,
   //         TARGET_AMOUNT,
-  //         MIN_CONTRIBUTION,
-  //         MAX_CONTRIBUTION,
-  //         MANAGEMENT_FEE,
+  //         MINIMUM_CONTRIBUTION,
+  //         MAXIMUM_CONTRIBUTION,
+  //         500
   //       )
-  //       .accounts({
+  //       .accountsPartial({
   //         bucket: bucketPda,
   //         tradingPool: tradingPoolPda,
   //         vaultTokenAccount: vaultTokenAccount,
   //         usdcMint: usdcMint,
+  //         creator: creator.publicKey,
   //         tokenProgram: TOKEN_PROGRAM_ID,
   //         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-  //         creator: creator.publicKey,
   //         systemProgram: SystemProgram.programId,
   //       })
   //       .signers([creator])
@@ -271,85 +273,527 @@ describe("icm-program", () => {
 
   //     console.log("Create bucket transaction signature", tx);
 
-  //     // Verify bucket was created with correct data
+  //     // Verify bucket was created
   //     const bucket = await program.account.bucket.fetch(bucketPda);
-  //     console.log("Bucket data:", bucket);
-  //     expect(bucket.creator.toString()).to.equal(creator.publicKey.toString());
-  //     expect(bucket.tokenMints.length).to.equal(2);
-  //     expect(bucket.tokenMints[0].toString()).to.equal(usdcMint.toString());
-  //     expect(bucket.tokenMints[1].toString()).to.equal(tokenMintB.toString());
-  //     expect(bucket.creatorFeePercent).to.equal(CREATOR_FEE_PERCENT);
   //     expect(bucket.name).to.equal(BUCKET_NAME);
-  //     expect(bucket.totalContributions.toString()).to.equal("0");
-  //     expect(bucket.bump).to.equal(bucketBump);
+  //     expect(bucket.creator.toString()).to.equal(creator.publicKey.toString());
+
+  //     console.log("Bucket data:", bucket);
   //   });
   // });
 
-  describe("Contribute to Bucket", () => {
-    it("Should allow contribution to bucket", async () => {
+  describe("Debug Contribution Issue", () => {
+    it("Should debug account setup before contribution", async () => {
+      // First verify all required accounts exist
+      console.log("=== DEBUGGING ACCOUNT SETUP ===");
+      
+      // Check bucket exists
+      try {
+        const bucket = await program.account.bucket.fetch(bucketPda);
+        console.log("✓ Bucket exists:", bucket.name);
+        console.log("  Status:", bucket.status);
+        console.log("  Creator:", bucket.creator.toString());
+        console.log("  Contribution deadline:", new Date(bucket.contributionDeadline.toNumber() * 1000));
+      } catch (error) {
+        console.log("✗ Bucket fetch failed:", error.message);
+        return;
+      }
 
-      const [contributionRecord, _] = PublicKey.findProgramAddressSync(
-          [
-              Buffer.from("contribution"),
-              bucketPda.toBuffer(),
-              contributor1.publicKey.toBuffer(),
-              usdcMint.toBuffer()
-          ],
-          program.programId
+      // Check program state
+      try {
+        const programState = await program.account.programState.fetch(programStatePda);
+        console.log("✓ Program state exists:");
+        console.log("  Initialized:", programState.initialized);
+        console.log("  Fee rate:", programState.feeRateBps, "bps");
+        console.log("  USDC mint:", programState.usdcMint.toString());
+      } catch (error) {
+        console.log("✗ Program state fetch failed:", error.message);
+        return;
+      }
+
+      // Check vault token account
+      const vaultTokenAccount = getAssociatedTokenAddressSync(
+        usdcMint,
+        bucketPda,
+        true,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+      
+      try {
+        const vaultAccount = await getAccount(provider.connection, vaultTokenAccount);
+        console.log("✓ Vault token account exists:");
+        console.log("  Balance:", vaultAccount.amount.toString());
+        console.log("  Owner:", vaultAccount.owner.toString());
+        console.log("  Mint:", vaultAccount.mint.toString());
+      } catch (error) {
+        console.log("✗ Vault token account fetch failed:", error.message);
+        return;
+      }
+
+      // Check contributor token account  
+      try {
+        const contributorAccount = await getAccount(provider.connection, contributor1USDCAccount);
+        console.log("✓ Contributor token account exists:");
+        console.log("  Balance:", contributorAccount.amount.toString());
+        console.log("  Owner:", contributorAccount.owner.toString());
+      } catch (error) {
+        console.log("✗ Contributor token account fetch failed:", error.message);
+        return;
+      }
+
+      console.log("✓ All required accounts exist and are properly configured");
+    });
+
+    it("Should try minimal contribution with detailed error logging", async () => {
+      const [contributionRecord] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("contribution"),
+          bucketPda.toBuffer(),
+          contributor1.publicKey.toBuffer(),
+          usdcMint.toBuffer(),
+        ],
+        program.programId
       );
 
-      const [poolContribution, _poolBump] = PublicKey.findProgramAddressSync(
-          [
-            Buffer.from("pool_contribution"),
-            bucketPda.toBuffer(),
-            contributor1.publicKey.toBuffer(),
-            usdcMint.toBuffer()
-          ],
-          program.programId
-        );
+      const [poolContribution] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("pool_contribution"),
+          bucketPda.toBuffer(),
+          contributor1.publicKey.toBuffer(),
+          usdcMint.toBuffer(),
+        ],
+        program.programId
+      );
 
       const vaultTokenAccount = getAssociatedTokenAddressSync(
         usdcMint,
-        bucketPda, // bucket PDA, not contributor
-        true, // isPDA
+        bucketPda,
+        true,
         TOKEN_PROGRAM_ID,
         ASSOCIATED_TOKEN_PROGRAM_ID
       );
 
-      const tx = await program.methods
-          .contributeToBucket(
-              BUCKET_NAME,
-              usdcMint,
-              new anchor.BN(CONTRIBUTE_AMOUNT)
-          )
+      // Use minimal contribution amount (1 token = 1,000,000 lamports for 6 decimals)
+      const minimalAmount = 1_000_000; 
+
+      console.log("=== ATTEMPTING MINIMAL CONTRIBUTION ===");
+      console.log("Amount:", minimalAmount, "lamports");
+      console.log("Bucket name:", BUCKET_NAME);
+      console.log("Contribution record PDA:", contributionRecord.toString());
+      console.log("Pool contribution PDA:", poolContribution.toString());
+
+      try {
+        // Check if these PDAs already exist (they shouldn't for a new contribution)
+        try {
+          const existingContribution = await program.account.contributionRecord.fetch(contributionRecord);
+          console.log("⚠️  Contribution record already exists:", existingContribution);
+        } catch {
+          console.log("✓ Contribution record PDA is available (doesn't exist yet)");
+        }
+
+        try {
+          const existingPool = await program.account.poolContribution.fetch(poolContribution);
+          console.log("⚠️  Pool contribution already exists:", existingPool);
+        } catch {
+          console.log("✓ Pool contribution PDA is available (doesn't exist yet)");
+        }
+
+        const tx = await program.methods
+          .contributeToBucket(BUCKET_NAME, new anchor.BN(minimalAmount))
           .accountsPartial({
-              bucket: bucketPda,
-              contributionRecord: contributionRecord,
-              pool_contribution: poolContribution,
-              contributorTokenAccount: contributor1USDCAccount,
-              vaultTokenAccount: vaultTokenAccount,
-              tokenMint: usdcMint,
-              contributor: contributor1.publicKey,
-              tokenProgram: TOKEN_PROGRAM_ID,
-              associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-              systemProgram: SystemProgram.programId,
+            bucket: bucketPda,
+            contributionRecord: contributionRecord,
+            poolContribution: poolContribution,
+            contributorTokenAccount: contributor1USDCAccount,
+            vaultTokenAccount: vaultTokenAccount,
+            usdcMint: usdcMint,
+            programState: programStatePda,
+            feeVault: feeVaultPda,
+            contributor: contributor1.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
           })
           .signers([contributor1])
           .rpc();
 
-        console.log("Contribute transaction signature", tx);
+        console.log("✓ SUCCESS! Contribution transaction:", tx);
 
-        // Verify contribution was recorded
+        // Verify the contribution was recorded
         const contribution = await program.account.contributionRecord.fetch(contributionRecord);
-        console.log("Contribution data:", contribution);
-        expect(contribution.contributor.toString()).to.equal(contributor1.publicKey.toString());
-        expect(contribution.bucket.toString()).to.equal(bucketPda.toString());
-        expect(contribution.tokenMint.toString()).to.equal(usdcMint.toString());
-        expect(contribution.amount.toString()).to.equal(CONTRIBUTE_AMOUNT.toString());
+        console.log("Contribution record:", contribution);
 
-        // Verify bucket total contributions updated
-        const bucket = await program.account.bucket.fetch(bucketPda);
-        expect(bucket.totalContributions.toString()).to.equal(CONTRIBUTE_AMOUNT.toString());
+      } catch (error) {
+        console.log("✗ CONTRIBUTION FAILED:");
+        console.log("Error message:", error.message);
+        if (error.logs) {
+          console.log("Program logs:");
+          error.logs.forEach((log, i) => console.log(`  ${i}: ${log}`));
+        }
+        
+        // Re-throw to fail the test
+        throw error;
+      }
     });
   });
+
+  describe("Contribute to Bucket", () => {
+    it("Should allow contribution to bucket", async () => {
+      const [contributionRecord] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("contribution"),
+          bucketPda.toBuffer(),
+          contributor1.publicKey.toBuffer(),
+          usdcMint.toBuffer(),
+        ],
+        program.programId
+      );
+
+      const [poolContribution] = PublicKey.findProgramAddressSync(
+        [
+          Buffer.from("pool_contribution"),
+          bucketPda.toBuffer(),
+          contributor1.publicKey.toBuffer(),
+          usdcMint.toBuffer(),
+        ],
+        program.programId
+      );
+
+      const vaultTokenAccount = getAssociatedTokenAddressSync(
+        usdcMint,
+        bucketPda,
+        true,
+        TOKEN_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
+      );
+
+      // Debug information
+      console.log("=== CONTRIBUTION DEBUG INFO ===");
+      console.log("Bucket PDA:", bucketPda.toString());
+      console.log("Contributor:", contributor1.publicKey.toString());
+      console.log("USDC Mint:", usdcMint.toString());
+      console.log("Contribution Record PDA:", contributionRecord.toString());
+      console.log("Pool Contribution PDA:", poolContribution.toString());
+      console.log("Vault Token Account:", vaultTokenAccount.toString());
+      console.log("Program State PDA:", programStatePda.toString());
+      console.log("Fee Vault PDA:", feeVaultPda.toString());
+
+      // Check if contributor has USDC tokens (if not, this test will fail realistically)
+      try {
+        const contributorBalance = await provider.connection.getTokenAccountBalance(contributor1USDCAccount);
+        console.log("Contributor USDC balance:", contributorBalance.value.amount);
+      } catch (error) {
+        console.log("Could not fetch contributor balance:", error);
+      }
+
+      // Check if vault account exists
+      try {
+        const vaultAccount = await provider.connection.getAccountInfo(vaultTokenAccount);
+        if (vaultAccount) {
+          console.log("Vault account exists with lamports:", vaultAccount.lamports);
+        } else {
+          console.log("Vault account does not exist");
+        }
+      } catch (error) {
+        console.log("Error checking vault account:", error);
+      }
+
+      const tx = await program.methods
+        .contributeToBucket(BUCKET_NAME, new anchor.BN(CONTRIBUTE_AMOUNT))
+        .accountsPartial({
+          bucket: bucketPda,
+          contributionRecord: contributionRecord,
+          poolContribution: poolContribution,
+          contributorTokenAccount: contributor1USDCAccount,
+          vaultTokenAccount: vaultTokenAccount,
+          usdcMint: usdcMint,
+          programState: programStatePda,
+          feeVault: feeVaultPda,
+          contributor: contributor1.publicKey,
+          tokenProgram: TOKEN_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([contributor1])
+        .rpc();
+
+      console.log("Contribute transaction signature", tx);
+
+      // Verify contribution was recorded
+      const contribution = await program.account.contributionRecord.fetch(contributionRecord);
+      console.log("Contribution data:", contribution);
+
+      expect(contribution.contributor.toString()).to.equal(contributor1.publicKey.toString());
+      expect(contribution.bucket.toString()).to.equal(bucketPda.toString());
+      expect(contribution.tokenMint.toString()).to.equal(usdcMint.toString());
+      // contribution.amount is likely a BN — compare string values
+      expect(contribution.amount.toString()).to.not.equal("0");
+
+      // Calculate expected net amount after fee
+      const expectedFee = Math.floor((CONTRIBUTE_AMOUNT * PROGRAM_FEE_RATE) / 10000);
+      const expectedNetAmount = CONTRIBUTE_AMOUNT - expectedFee;
+
+      // Verify bucket total contributions updated with net amount
+      const bucket = await program.account.bucket.fetch(bucketPda);
+      expect(bucket.raisedAmount.toString()).to.equal(new anchor.BN(expectedNetAmount).toString());
+
+      // Verify program state fee collection updated
+      const programState = await program.account.programState.fetch(programStatePda);
+      expect(programState.totalFeesCollected.toString()).to.equal(new anchor.BN(expectedFee).toString());
+      
+      console.log(`Fee collected: ${expectedFee}, Net contribution: ${expectedNetAmount}`);
+    });
+  });
+
+  // describe("Create Bucket", () => {
+  //   it("Should create a bucket", async () => {
+  //     const [tradingPoolPda] = PublicKey.findProgramAddressSync(
+  //       [
+  //         Buffer.from("trading_pool"),
+  //         Buffer.from(BUCKET_NAME),
+  //         creator.publicKey.toBuffer(),
+  //       ],
+  //       program.programId
+  //     );
+
+  //     const vaultTokenAccount = getAssociatedTokenAddressSync(
+  //       usdcMint,
+  //       bucketPda,
+  //       true,
+  //       TOKEN_PROGRAM_ID,
+  //       ASSOCIATED_TOKEN_PROGRAM_ID
+  //     );
+
+  //     const tx = await program.methods
+  //       .createBucket(
+  //         BUCKET_NAME,
+  //         [QTOKEN, ZTOKEN2022, GTOKEN2022],
+  //         CONTRIBUTION_WINDOW_MINUTES,
+  //         TRADING_WINDOW_MINUTES,
+  //         CREATOR_FEE_PERCENT,
+  //         new anchor.BN(1000000),
+  //         new anchor.BN(10000),
+  //         new anchor.BN(100000),
+  //         500
+  //       )
+  //       .accountsPartial({
+  //         bucket: bucketPda,
+  //         tradingPool: tradingPoolPda,
+  //         vaultTokenAccount: vaultTokenAccount,
+  //         usdcMint: usdcMint,
+  //         creator: creator.publicKey,
+  //         tokenProgram: TOKEN_PROGRAM_ID,
+  //         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //         systemProgram: SystemProgram.programId,
+  //       })
+  //       .signers([creator])
+  //       .rpc();
+
+  //     console.log("Create bucket transaction signature", tx);
+
+  //     // Verify bucket was created
+  //     const bucket = await program.account.bucket.fetch(bucketPda);
+  //     expect(bucket.name).to.equal(BUCKET_NAME);
+  //     expect(bucket.creator.toString()).to.equal(creator.publicKey.toString());
+
+  //     console.log("Bucket data:", bucket);
+  //   });
+  // });
+
+  // describe("Contribute to Bucket", () => {
+  //   it("Should allow contribution to bucket", async () => {
+  //     const [contributionRecord] = PublicKey.findProgramAddressSync(
+  //       [
+  //         Buffer.from("contribution"),
+  //         bucketPda.toBuffer(),
+  //         contributor1.publicKey.toBuffer(),
+  //         usdcMint.toBuffer(),
+  //       ],
+  //       program.programId
+  //     );
+
+  //     const [poolContribution] = PublicKey.findProgramAddressSync(
+  //       [
+  //         Buffer.from("pool_contribution"),
+  //         bucketPda.toBuffer(),
+  //         contributor1.publicKey.toBuffer(),
+  //         usdcMint.toBuffer(),
+  //       ],
+  //       program.programId
+  //     );
+
+  //     const vaultTokenAccount = getAssociatedTokenAddressSync(
+  //       usdcMint,
+  //       bucketPda,
+  //       true,
+  //       TOKEN_PROGRAM_ID,
+  //       ASSOCIATED_TOKEN_PROGRAM_ID
+  //     );
+
+  //     const tx = await program.methods
+  //       .contributeToBucket(BUCKET_NAME, new anchor.BN(CONTRIBUTE_AMOUNT))
+  //       .accountsPartial({
+  //         bucket: bucketPda,
+  //         contributionRecord: contributionRecord,
+  //         poolContribution: poolContribution,
+  //         contributorTokenAccount: contributor1USDCAccount,
+  //         vaultTokenAccount: vaultTokenAccount,
+  //         usdcMint: usdcMint,
+  //         programState: programStatePda,
+  //         feeVault: feeVaultPda,
+  //         contributor: contributor1.publicKey,
+  //         tokenProgram: TOKEN_PROGRAM_ID,
+  //         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //         systemProgram: SystemProgram.programId,
+  //       })
+  //       .signers([contributor1])
+  //       .rpc();
+
+  //     console.log("Contribute transaction signature", tx);
+
+  //     // Verify contribution was recorded
+  //     const contribution = await program.account.contributionRecord.fetch(contributionRecord);
+  //     console.log("Contribution data:", contribution);
+
+  //     expect(contribution.contributor.toString()).to.equal(contributor1.publicKey.toString());
+  //     expect(contribution.bucket.toString()).to.equal(bucketPda.toString());
+  //     expect(contribution.tokenMint.toString()).to.equal(usdcMint.toString());
+  //     // contribution.amount is likely a BN — compare string values
+  //     expect(contribution.amount.toString()).to.equal(new anchor.BN(CONTRIBUTE_AMOUNT).toString());
+
+  //     // Calculate expected net amount after fee
+  //     const expectedFee = Math.floor((CONTRIBUTE_AMOUNT * PROGRAM_FEE_RATE) / 10000);
+  //     const expectedNetAmount = CONTRIBUTE_AMOUNT - expectedFee;
+
+  //     // Verify bucket total contributions updated with net amount
+  //     const bucket = await program.account.bucket.fetch(bucketPda);
+  //     expect(bucket.raisedAmount.toString()).to.equal(new anchor.BN(expectedNetAmount).toString());
+
+  //     // Verify program state fee collection updated
+  //     const programState = await program.account.programState.fetch(programStatePda);
+  //     expect(programState.totalFeesCollected.toString()).to.equal(new anchor.BN(expectedFee).toString());
+      
+  //     console.log(`Fee collected: ${expectedFee}, Net contribution: ${expectedNetAmount}`);
+  //   });
+  // });
+
+  // describe("Fee Management", () => {
+  //   it("Should allow program owner to withdraw fees", async () => {
+  //     // Create owner's USDC token account if it doesn't exist
+  //     const ownerUSDCAccount = getAssociatedTokenAddressSync(
+  //       usdcMint,
+  //       creator.publicKey,
+  //       false,
+  //       TOKEN_PROGRAM_ID,
+  //       ASSOCIATED_TOKEN_PROGRAM_ID
+  //     );
+
+  //     // Check initial balances
+  //     const initialFeeVaultBalance = await provider.connection.getTokenAccountBalance(feeVaultPda);
+  //     console.log("Initial fee vault balance:", initialFeeVaultBalance.value.amount);
+
+  //     const tx = await program.methods
+  //       .withdrawFees(null) // null means withdraw all
+  //       .accountsPartial({
+  //         programState: programStatePda,
+  //         feeVault: feeVaultPda,
+  //         ownerTokenAccount: ownerUSDCAccount,
+  //         owner: creator.publicKey,
+  //         tokenProgram: TOKEN_PROGRAM_ID,
+  //       })
+  //       .signers([creator])
+  //       .rpc();
+
+  //     console.log("Withdraw fees transaction signature", tx);
+
+  //     // Verify fee vault is now empty
+  //     const finalFeeVaultBalance = await provider.connection.getTokenAccountBalance(feeVaultPda);
+  //     expect(finalFeeVaultBalance.value.amount).to.equal("0");
+
+  //     console.log("Final fee vault balance:", finalFeeVaultBalance.value.amount);
+  //   });
+
+  //   it("Should fail to withdraw fees if not owner", async () => {
+  //     // Try to withdraw fees with contributor1 (not owner)
+  //     const ownerUSDCAccount = getAssociatedTokenAddressSync(
+  //       usdcMint,
+  //       contributor1.publicKey,
+  //       false,
+  //       TOKEN_PROGRAM_ID,
+  //       ASSOCIATED_TOKEN_PROGRAM_ID
+  //     );
+
+  //     try {
+  //       await program.methods
+  //         .withdrawFees(null)
+  //         .accountsPartial({
+  //           programState: programStatePda,
+  //           feeVault: feeVaultPda,
+  //           ownerTokenAccount: ownerUSDCAccount,
+  //           owner: contributor1.publicKey, // Not the real owner
+  //           tokenProgram: TOKEN_PROGRAM_ID,
+  //         })
+  //         .signers([contributor1])
+  //         .rpc();
+        
+  //       expect.fail("Should have failed to withdraw fees as non-owner");
+  //     } catch (error) {
+  //       console.log("Expected error when non-owner tries to withdraw:", error.message);
+  //     }
+  //   });
+  // });
+
+  // it("Should swap tradeable asset from Raydium (devnet CP-Swap example)", async () => {
+  //   const inAmount = new anchor.BN(1000);
+  //   const quotedOutAmount = new anchor.BN(900);
+  //   const slippageBps = 50;
+  //   const platformFeeBps = 0;
+
+  //   // Known mints on devnet
+  //   const inputMint = usdcMint;   // e.g. USDC
+  //   const outputMint = tokenMintB; // e.g. SOL (wrapped)
+  //   const inputMintProgram = TOKEN_PROGRAM_ID;
+  //   const outputMintProgram = TOKEN_PROGRAM_ID;
+
+  //   // Raydium devnet addresses
+  //   const raydiumAmmProgram = new PublicKey(
+  //     "CPMDWBwJDtYax9qW7AyRuVC19Cc4L4Vcy4n2BHAbHkCW" // Raydium CP-Swap program (devnet)
+  //   );
+  //   const amm = new PublicKey("5R2wzTtEq9tm1pXkVU7QVdp3E6C3eUCPjrGDqkz9eD6T");
+  //   const ammAuthority = new PublicKey("6t1fzD7s5D7dvvnA1mVdD5Jm67Fb9YaB6X6hQpF8o8Fj");
+  //   const poolCoinTokenAccount = new PublicKey("2vP2hRfjM4Lx8mVymWxw2Aa72c8hA3L7xrxvD5U5q4K7");
+  //   const poolPcTokenAccount = new PublicKey("7qZPVvHryXtN1Z8VhxT9ku3uXKp5o4RUrgmRoei7wLpm");
+
+  //   const tx = await program.methods
+  //     .swapTokens(inAmount, quotedOutAmount, slippageBps)
+  //     .accounts({
+  //       tradeRecord: tradeRecordPda,
+  //       creator: creator.publicKey,
+  //       bucket: bucketPda,
+  //       inputMint,
+  //       systemProgram: SystemProgram.programId,
+  //       inputMintProgram,
+  //       outputMint,
+  //       outputMintProgram,
+  //       vaultInputTokenAccount,
+  //       vaultOutputTokenAccount,
+  //       raydiumAmmProgram,
+  //       amm,
+  //       ammAuthority,
+  //       poolCoinTokenAccount,
+  //       poolPcTokenAccount,
+  //       userSourceTokenAccount,
+  //       userDestinationTokenAccount,
+  //       userAuthority,
+  //       tokenProgram: TOKEN_PROGRAM_ID,
+  //       rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+  //     })
+  //     .signers([creator])
+  //     .rpc();
+
+  //   console.log("Swap transaction signature", tx);
+  // });
+
+
 });

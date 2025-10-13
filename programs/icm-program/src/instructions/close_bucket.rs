@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 use crate::state::{Bucket, BucketStatus};
+use crate::utils::close_bucket_util;
 use crate::error::ErrorCode;
 
 #[derive(Accounts)]
@@ -45,18 +46,12 @@ pub fn close_bucket_handler(ctx: Context<CloseBucket>) -> Result<()> {
         ErrorCode::TradingStillActive
     );
 
-    bucket.status = BucketStatus::Closed;
-    bucket.closed_at = clock.unix_timestamp;
-
-    // Persist TradingPool account
-    let trading_pool = &mut ctx.accounts.trading_pool;
-    trading_pool.phase = crate::state::PoolPhase::Closed;
-    trading_pool.trading_end_time = Some(clock.unix_timestamp);
-
-    // Persist CreatorProfile account
-    let creator_profile = &mut ctx.accounts.creator_profile;
-    creator_profile.successful_pools += 1;
-    creator_profile.total_volume_managed += bucket.raised_amount;
+    close_bucket_util(
+        bucket,
+        &mut ctx.accounts.trading_pool,
+        &mut ctx.accounts.creator_profile,
+        clock.unix_timestamp,
+    );
 
     msg!("Bucket '{}' closed for claims", bucket.name);
     Ok(())
