@@ -1,0 +1,8 @@
+[fuzz.metrics]
+enabled = true
+
+
+[[fuzz.programs]]
+address = "3B4MZ2emBqufVyzfCCcNrvjeJVE4JhnrAEyh5jsBpSaQ"
+program = "../target/deploy/icm_program.so"
+ 
