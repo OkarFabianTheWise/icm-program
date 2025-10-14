@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::error::ErrorCode;
+use anchor_lang::prelude::*;
 
 #[inline(never)]
 pub fn validate_inputs(
@@ -9,7 +9,8 @@ pub fn validate_inputs(
     trading_window_minutes: u32,
     creator_fee_percent: u16,
 ) -> Result<()> {
-    require!(name.len() <= 64, ErrorCode::NameTooLong);
+    // use 50 as in the max_len and error code for easy debugging
+    require!(name.len() <= 50, ErrorCode::NameTooLong);
     require!(token_mints.len() >= 2, ErrorCode::InsufficientTokens);
     require!(token_mints.len() <= 3, ErrorCode::TooManyTokens);
     require!(
@@ -20,7 +21,7 @@ pub fn validate_inputs(
         trading_window_minutes >= 1 && trading_window_minutes <= 259200, // 1 minute to 180 days (259200 minutes)
         ErrorCode::InvalidTradingWindow
     );
-    require!(creator_fee_percent <= 2000, ErrorCode::FeeTooHigh);
+    require!(creator_fee_percent <= 2000, ErrorCode::FeeTooHigh); // 20 percent
 
     let mut unique_tokens = token_mints.clone();
     unique_tokens.sort();

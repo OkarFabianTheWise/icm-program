@@ -1,9 +1,12 @@
-use anchor_lang::{prelude::*, solana_program::{instruction::Instruction, program::invoke_signed}};
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_lang::{
+    prelude::*,
+    solana_program::{instruction::Instruction, program::invoke_signed},
+};
 use anchor_spl::token::Token;
+use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
 // anchor_lang::solana_program::instruction::AccountMeta;
-use borsh::{BorshDeserialize, BorshSerialize};
 use crate::{constants::*, error::ErrorCode, state::*};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 /// Borsh layout for Raydium CP-swap SwapBaseIn (minimal)
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -13,7 +16,6 @@ pub struct SwapBaseInData {
 }
 
 /// Accounts required for Raydium CP-swap CPI.
-///
 /// Note: The `user_source_token_account`, `user_destination_token_account`, and `user_authority`
 /// are actually the vault token accounts and vault authority PDA controlled by this program.
 /// Raydium expects these fields to be named as such, but they are not user wallet accounts.
@@ -94,7 +96,7 @@ pub struct SwapTokens<'info> {
 pub fn swap_tokens_handler(
     ctx: Context<SwapTokens>,
     in_amount: u64,
-    quoted_out_amount: u64,       // Use this as `minimum_out` (slippage-protected)
+    quoted_out_amount: u64, // Use this as `minimum_out` (slippage-protected)
     slippage_bps: u16,
 ) -> Result<()> {
     let bucket = &ctx.accounts.bucket;
@@ -209,7 +211,9 @@ pub fn swap_tokens_handler(
         ctx.accounts.pool_coin_token_account.to_account_info(),
         ctx.accounts.pool_pc_token_account.to_account_info(),
         ctx.accounts.user_source_token_account.to_account_info(),
-        ctx.accounts.user_destination_token_account.to_account_info(),
+        ctx.accounts
+            .user_destination_token_account
+            .to_account_info(),
         ctx.accounts.user_authority.to_account_info(),
         ctx.accounts.token_program.to_account_info(),
         ctx.accounts.rent.to_account_info(),

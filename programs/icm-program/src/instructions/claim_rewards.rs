@@ -1,10 +1,10 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{self, TokenAccount, Transfer};
-use anchor_spl::token::Token;
-use anchor_spl::associated_token::AssociatedToken;
-use crate::state::{Bucket, ContributionRecord, BucketStatus, ProgramState};
-use crate::utils::close_bucket_util;
 use crate::error::ErrorCode;
+use crate::state::{Bucket, BucketStatus, ContributionRecord, ProgramState};
+use crate::utils::close_bucket_util;
+use anchor_lang::prelude::*;
+use anchor_spl::associated_token::AssociatedToken;
+use anchor_spl::token::Token;
+use anchor_spl::token::{self, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 #[instruction(bucket_name: String, token_mint: Pubkey)]
@@ -19,7 +19,7 @@ pub struct ClaimRewards<'info> {
         bump = bucket.bump
     )]
     pub bucket: Account<'info, Bucket>,
-    
+
     #[account(
         seeds = [b"contribution", bucket.key().as_ref(), contributor.key().as_ref(), token_mint.as_ref()],
         bump
@@ -39,7 +39,7 @@ pub struct ClaimRewards<'info> {
         bump
     )]
     pub trading_pool: Account<'info, crate::state::TradingPool>,
-    
+
     #[account(
         mut,
         seeds = [b"creator_profile", bucket.creator.as_ref()],
@@ -49,24 +49,24 @@ pub struct ClaimRewards<'info> {
 
     #[account(mut)]
     pub contributor_token_account: Account<'info, TokenAccount>,
-    
+
     #[account(mut)]
     pub vault_token_account: Account<'info, TokenAccount>,
-    
+
     #[account(
         mut,
         seeds = [b"program_state"],
         bump = program_state.bump
     )]
     pub program_state: Account<'info, ProgramState>,
-    
+
     #[account(
         mut,
         associated_token::mint = program_state.usdc_mint,
         associated_token::authority = program_state,
     )]
     pub fee_vault: Account<'info, TokenAccount>,
-    
+
     #[account(mut)]
     pub contributor: Signer<'info>,
 
@@ -75,9 +75,7 @@ pub struct ClaimRewards<'info> {
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
-pub fn claim_rewards_handler(
-    ctx: Context<ClaimRewards>
-) -> Result<()> {
+pub fn claim_rewards_handler(ctx: Context<ClaimRewards>) -> Result<()> {
     let bucket = &mut ctx.accounts.bucket;
     let contribution_record = &ctx.accounts.contribution_record;
     let clock = Clock::get()?;
@@ -94,7 +92,10 @@ pub fn claim_rewards_handler(
             &mut ctx.accounts.creator_profile,
             clock.unix_timestamp,
         );
-        msg!("Bucket closed by contributor {} after trading elapsed", ctx.accounts.contributor.key());
+        msg!(
+            "Bucket closed by contributor {} after trading elapsed",
+            ctx.accounts.contributor.key()
+        );
     }
 
     // Validations
@@ -122,7 +123,9 @@ pub fn claim_rewards_handler(
             .unwrap()
             .checked_div(10000)
             .unwrap() as u64;
-        user_share + creator_fee
+        user_share
+            .checked_add(creator_fee)
+            .ok_or(ErrorCode::Overflow)?
     } else {
         user_share
     };
@@ -136,7 +139,7 @@ pub fn claim_rewards_handler(
         .ok_or(ErrorCode::Overflow)?
         .checked_div(10000)
         .ok_or(ErrorCode::Overflow)? as u64;
-    
+
     let net_amount = amount_to_transfer
         .checked_sub(fee_amount)
         .ok_or(ErrorCode::InsufficientFunds)?;

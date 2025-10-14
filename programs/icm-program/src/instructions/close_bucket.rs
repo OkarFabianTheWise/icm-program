@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
+use crate::error::ErrorCode;
 use crate::state::{Bucket, BucketStatus};
 use crate::utils::close_bucket_util;
-use crate::error::ErrorCode;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(bucket_name: String)]

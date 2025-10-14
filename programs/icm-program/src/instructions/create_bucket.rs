@@ -54,7 +54,7 @@ pub fn create_bucket_handler(
     target_amount: u64,
     min_contribution: u64,
     max_contribution: u64,
-    management_fee: u16,
+    management_fee: u64,
 ) -> Result<()> {
     validation::validate_inputs(
         &name,

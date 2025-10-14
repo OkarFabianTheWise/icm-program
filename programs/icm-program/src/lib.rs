@@ -1,17 +1,16 @@
 #![allow(unexpected_cfgs)]
 use anchor_lang::prelude::*;
 
+pub mod constants;
+pub mod error;
 pub mod instructions;
 pub mod state;
-pub mod error;
-pub mod constants;
 pub mod utils;
 pub use utils::*;
 
+pub use constants::*;
 pub use instructions::*;
 pub use state::*;
-pub use error::*;
-pub use constants::*;
 
 declare_id!("3B4MZ2emBqufVyzfCCcNrvjeJVE4JhnrAEyh5jsBpSaQ");
 
@@ -32,7 +31,7 @@ mod icm_program {
         target_amount: u64,
         min_contribution: u64,
         max_contribution: u64,
-        management_fee: u16,
+        management_fee: u64,
     ) -> Result<()> {
         create_bucket::create_bucket_handler(
             ctx,
@@ -64,12 +63,10 @@ mod icm_program {
         close_bucket::close_bucket_handler(ctx)
     }
 
-    pub fn claim_rewards(
-        ctx: Context<ClaimRewards>,
-    ) -> Result<()> {
+    pub fn claim_rewards(ctx: Context<ClaimRewards>) -> Result<()> {
         claim_rewards::claim_rewards_handler(ctx)
     }
-    
+
     pub fn swap_tokens(
         ctx: Context<SwapTokens>,
         in_amount: u64,
@@ -79,19 +76,11 @@ mod icm_program {
         swap_tokens::swap_tokens_handler(ctx, in_amount, quoted_out_amount, slippage_bps)
     }
 
-    pub fn initialize_program(
-        ctx: Context<InitializeProgram>,
-        fee_rate_bps: u16,
-    ) -> Result<()> {
+    pub fn initialize_program(ctx: Context<InitializeProgram>, fee_rate_bps: u16) -> Result<()> {
         initialize_program::initialize_program_handler(ctx, fee_rate_bps)
     }
 
-    pub fn withdraw_fees(
-        ctx: Context<WithdrawFees>,
-        amount: Option<u64>,
-    ) -> Result<()> {
+    pub fn withdraw_fees(ctx: Context<WithdrawFees>, amount: Option<u64>) -> Result<()> {
         withdraw_fees::withdraw_fees_handler(ctx, amount)
     }
 }
-
-

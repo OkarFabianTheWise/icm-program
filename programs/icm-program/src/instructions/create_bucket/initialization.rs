@@ -1,7 +1,8 @@
-use anchor_lang::prelude::*;
 use crate::state::{Bucket, BucketStatus};
+use anchor_lang::prelude::*;
 
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 pub fn initialize_bucket(
     bucket: &mut Account<Bucket>,
     name: &String,
@@ -9,7 +10,7 @@ pub fn initialize_bucket(
     contribution_window_minutes: u32,
     trading_window_minutes: u32,
     creator_fee_percent: u16,
-    management_fee: u16,
+    management_fee: u64,
     creator: &Signer,
     now: i64,
     bump: u8,
@@ -17,25 +18,25 @@ pub fn initialize_bucket(
     bucket.creator = creator.key();
     bucket.name = name.clone();
     bucket.token_mints = token_mints.clone();
-    bucket.contribution_deadline = now + (contribution_window_minutes as i64 * 60);
-    bucket.trading_deadline = bucket.contribution_deadline + (trading_window_minutes as i64 * 60);
+    bucket.contribution_deadline = now + (contribution_window_minutes as i64 * 60i64);
+    bucket.trading_deadline = bucket.contribution_deadline + (trading_window_minutes as i64 * 60i64);
     bucket.creator_fee_percent = creator_fee_percent;
     bucket.status = BucketStatus::Raising;
     bucket.trading_started_at = 0;
+    // @ check for this impl later in the program
     bucket.closed_at = 0;
     bucket.bump = bump;
-    
+
     // Derive the creator profile PDA
-    let (creator_profile_pda, _) = Pubkey::find_program_address(
-        &[b"creator_profile", creator.key().as_ref()],
-        &crate::ID
-    );
+    let (creator_profile_pda, _) =
+        Pubkey::find_program_address(&[b"creator_profile", creator.key().as_ref()], &crate::ID);
     bucket.creator_profile = creator_profile_pda;
     bucket.performance_fee = management_fee;
     Ok(())
 }
 
 #[inline(never)]
+#[allow(clippy::too_many_arguments)]
 pub fn initialize_trading_pool(
     trading_pool: &mut Account<crate::state::TradingPool>,
     bucket: &Account<Bucket>,
@@ -45,7 +46,7 @@ pub fn initialize_trading_pool(
     min_contribution: u64,
     max_contribution: u64,
     trading_window_minutes: u32,
-    management_fee: u16,
+    management_fee: u64,
     now: i64,
     bump: u8,
 ) -> Result<()> {

@@ -1,5 +1,5 @@
+use crate::state::{Bucket, BucketStatus, CreatorProfile, PoolPhase, TradingPool};
 use anchor_lang::prelude::*;
-use crate::state::{Bucket, BucketStatus, TradingPool, CreatorProfile, PoolPhase};
 
 /// Utility function to close a bucket and update related accounts
 pub fn close_bucket_util(
@@ -13,5 +13,8 @@ pub fn close_bucket_util(
     trading_pool.phase = PoolPhase::Closed;
     trading_pool.trading_end_time = Some(now);
     creator_profile.successful_pools.checked_add(1).unwrap();
-    creator_profile.total_volume_managed.checked_add(bucket.raised_amount).unwrap();
+    creator_profile
+        .total_volume_managed
+        .checked_add(bucket.raised_amount)
+        .unwrap();
 }

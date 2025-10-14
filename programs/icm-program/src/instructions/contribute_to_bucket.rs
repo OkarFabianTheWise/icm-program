@@ -1,5 +1,5 @@
 use crate::error::ErrorCode;
-use crate::state::{Bucket, BucketStatus, ContributionRecord, ProgramState, PoolContribution};
+use crate::state::{Bucket, BucketStatus, ContributionRecord, PoolContribution, ProgramState};
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -15,6 +15,8 @@ pub struct ContributeToBucket<'info> {
         bump = bucket.bump
     )]
     pub bucket: Box<Account<'info, Bucket>>,
+
+    ///### Dangerous init_if_needed
     #[account(
         init_if_needed,
         payer = contributor,
@@ -24,6 +26,8 @@ pub struct ContributeToBucket<'info> {
         bump
     )]
     pub contribution_record: Box<Account<'info, ContributionRecord>>,
+
+    ///### Dangerous init_if_needed
     #[account(
         init_if_needed,
         payer = contributor,
@@ -33,6 +37,7 @@ pub struct ContributeToBucket<'info> {
         bump
     )]
     pub pool_contribution: Box<Account<'info, PoolContribution>>,
+
     #[account(mut)]
     pub contributor_token_account: Box<Account<'info, TokenAccount>>,
     #[account(
@@ -63,7 +68,7 @@ pub struct ContributeToBucket<'info> {
 
 pub fn contribute_to_bucket_handler(
     ctx: Context<ContributeToBucket>,
-    bucket_name: String,
+    _bucket_name: String,
     amount: u64,
 ) -> Result<()> {
     let bucket = &mut ctx.accounts.bucket;
@@ -81,7 +86,7 @@ pub fn contribute_to_bucket_handler(
     );
     require!(amount > 0, ErrorCode::InvalidAmount);
     require!(program_state.initialized, ErrorCode::ProgramNotInitialized);
-    
+
     // Validate USDC mint matches expected mint
     require!(
         ctx.accounts.usdc_mint.key() == program_state.usdc_mint,
@@ -94,7 +99,7 @@ pub fn contribute_to_bucket_handler(
         .ok_or(ErrorCode::Overflow)?
         .checked_div(10000)
         .ok_or(ErrorCode::Overflow)? as u64;
-    
+
     let net_amount = amount
         .checked_sub(fee_amount)
         .ok_or(ErrorCode::InsufficientFunds)?;
@@ -159,7 +164,7 @@ pub fn contribute_to_bucket_handler(
         .ok_or(ErrorCode::Overflow)?;
 
     let pool_contribution = &mut ctx.accounts.pool_contribution;
-    
+
     // Initialize or update pool contribution
     if pool_contribution.pool_id == Pubkey::default() {
         // New pool contribution

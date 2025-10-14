@@ -21,10 +21,13 @@ pub struct Bucket {
     pub creator_fee_percent: u16, // Basis points (e.g., 500 = 5%)
     pub status: BucketStatus,
     pub trading_started_at: i64,
+    ///### This was hard coded to 0 on initilalization
+    ///### in the initialize_bucket()
     pub closed_at: i64,
     pub bump: u8,
     pub creator_profile: Pubkey,
-    pub performance_fee: u16,
+    // @ make all fee of type u64 consistently
+    pub performance_fee: u64,
     pub raised_amount: u64,
     pub contributor_count: u32,
 }
@@ -58,6 +61,7 @@ pub struct TradingPool {
     pub pool_id: Pubkey,
     pub pool_bump: u8,
     pub creator: Pubkey,
+    ///### @check Does the order matter in implementation?
     #[max_len(3)]
     pub token_bucket: Vec<Pubkey>,
     pub target_amount: u64,
@@ -65,11 +69,14 @@ pub struct TradingPool {
     pub max_contribution: u64,
     pub trading_duration: u64,
     pub created_at: i64,
+    ///### @check why is the fundraising deadline == bucket.contribution_deadline and what impact would the fundraising deadline have on the codebase
     pub fundraising_deadline: i64,
+    ///### @check why is this option<i64> and hardcoded to NOne on initialization
     pub trading_start_time: Option<i64>,
+    ///### @check why is this option<i64> and hardcoded to NOne on initialization
     pub trading_end_time: Option<i64>,
     pub phase: PoolPhase,
-    pub management_fee: u16,
+    pub management_fee: u64,
 }
 
 #[account]

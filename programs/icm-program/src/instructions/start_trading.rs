@@ -1,10 +1,10 @@
-use anchor_lang::prelude::*;
-use solana_program::instruction::AccountMeta;
-use solana_program::program::{invoke};
-use solana_program::program_error::ProgramError;
-use anchor_spl::token::Token;
-use crate::state::{Bucket, BucketStatus};
 use crate::error::ErrorCode;
+use crate::state::{Bucket, BucketStatus};
+use anchor_lang::prelude::*;
+use anchor_spl::token::Token;
+use solana_program::instruction::AccountMeta;
+use solana_program::program::invoke;
+use solana_program::program_error::ProgramError;
 
 //
 // Inline copy of Solend's DepositReserveLiquidity instruction format
@@ -76,10 +76,7 @@ pub struct StartTrading<'info> {
     pub solend_program: UncheckedAccount<'info>,
 }
 
-pub fn start_trading_handler(
-    ctx: Context<StartTrading>,
-    bucket_name: String,
-) -> Result<()> {
+pub fn start_trading_handler(ctx: Context<StartTrading>, bucket_name: String) -> Result<()> {
     let bucket = &mut ctx.accounts.bucket;
     let clock = Clock::get()?;
 
@@ -99,7 +96,8 @@ pub fn start_trading_handler(
     require!(bucket.raised_amount > 0, ErrorCode::NoContributions);
 
     // --- Calculate lend amount ---
-    let lend_amount = bucket.raised_amount
+    let lend_amount = bucket
+        .raised_amount
         .checked_mul(30)
         .unwrap()
         .checked_div(100)
@@ -109,9 +107,9 @@ pub fn start_trading_handler(
     let ix = solana_program::instruction::Instruction {
         program_id: ctx.accounts.solend_program.key(),
         accounts: vec![
-            AccountMeta::new(ctx.accounts.source_liquidity.key(), false),     // source liquidity
+            AccountMeta::new(ctx.accounts.source_liquidity.key(), false), // source liquidity
             AccountMeta::new(ctx.accounts.destination_collateral.key(), false), // destination collateral
-            AccountMeta::new(ctx.accounts.reserve.key(), false),             // reserve
+            AccountMeta::new(ctx.accounts.reserve.key(), false),                // reserve
             AccountMeta::new(ctx.accounts.reserve_liquidity_supply.key(), false),
             AccountMeta::new(ctx.accounts.reserve_collateral_mint.key(), false),
             AccountMeta::new(ctx.accounts.lending_market.key(), false),
@@ -121,7 +119,10 @@ pub fn start_trading_handler(
             AccountMeta::new_readonly(ctx.accounts.token_program.key(), false),
             AccountMeta::new_readonly(ctx.accounts.creator.key(), true), // liquidity authority
         ],
-        data: DepositReserveLiquidity { liquidity_amount: lend_amount }.pack(),
+        data: DepositReserveLiquidity {
+            liquidity_amount: lend_amount,
+        }
+        .pack(),
     };
 
     // --- Invoke CPI into Solend ---
