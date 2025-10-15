@@ -1,5 +1,7 @@
 use crate::error::ErrorCode;
 use crate::state::{Bucket, BucketStatus, ContributionRecord, PoolContribution, ProgramState};
+use crate::constants::usdc_id;
+
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -40,27 +42,35 @@ pub struct ContributeToBucket<'info> {
 
     #[account(mut)]
     pub contributor_token_account: Box<Account<'info, TokenAccount>>,
+
     #[account(
         mut,
         associated_token::mint = usdc_mint,
         associated_token::authority = bucket,
     )]
     pub vault_token_account: Box<Account<'info, TokenAccount>>,
+
+    ///## @audit put the address constraint to ensure the usdc mint is the specified usdc mint in the constants file
+    #[account(address = usdc_id())]
     pub usdc_mint: Box<Account<'info, Mint>>,
+    
     #[account(
         mut,
         seeds = [b"program_state"],
         bump = program_state.bump
     )]
     pub program_state: Box<Account<'info, ProgramState>>,
+    
     #[account(
         mut,
         associated_token::mint = usdc_mint,
         associated_token::authority = program_state,
     )]
     pub fee_vault: Box<Account<'info, TokenAccount>>,
+
     #[account(mut)]
     pub contributor: Signer<'info>,
+
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub system_program: Program<'info, System>,
@@ -87,11 +97,7 @@ pub fn contribute_to_bucket_handler(
     require!(amount > 0, ErrorCode::InvalidAmount);
     require!(program_state.initialized, ErrorCode::ProgramNotInitialized);
 
-    // Validate USDC mint matches expected mint
-    require!(
-        ctx.accounts.usdc_mint.key() == program_state.usdc_mint,
-        ErrorCode::InvalidMint
-    );
+    // usdc_mint is validated by account constraint `address = usdc_id()`
 
     // Calculate fee amount (0.5% = 50 basis points)
     let fee_amount = (amount as u128)
@@ -105,6 +111,7 @@ pub fn contribute_to_bucket_handler(
         .ok_or(ErrorCode::InsufficientFunds)?;
 
     // Transfer fee to program fee vault
+    //@ audit: There is no check for if the fee amount is zero, it simply skip the whole fee _transfer ctx and continues 
     if fee_amount > 0 {
         let fee_transfer_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -124,6 +131,9 @@ pub fn contribute_to_bucket_handler(
     }
 
     // Transfer net amount to vault
+    //@audit, there is 2 transfers of the same amount from the contributor token account
+    // 1 to the fee vault
+    // 2 to the vault token account 
     let transfer_ctx = CpiContext::new(
         ctx.accounts.token_program.to_account_info(),
         Transfer {

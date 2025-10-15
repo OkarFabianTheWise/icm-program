@@ -15,7 +15,7 @@ pub struct InitializeProgram<'info> {
         payer = owner,
         space = 8 + ProgramState::INIT_SPACE,
         // make the seeds more deterministic and use extra inputs like the crate_id since only the program can call this fucntion
-        seeds = [b"program_state", crate::ID.to_bytes().as_ref()],
+        seeds = [b"program_state"/*, crate::ID.to_bytes().as_ref() */],
         bump
     )]
     pub program_state: Box<Account<'info, ProgramState>>,
@@ -28,7 +28,10 @@ pub struct InitializeProgram<'info> {
     )]
     pub fee_vault: Box<Account<'info, TokenAccount>>,
 
+    //@ audit: Assert the usdc mint is equal to the passed in usdc mint address
+    #[account(address = usdc_id() @ ErrorCode::InvalidMint)]
     pub usdc_mint: Box<Account<'info, Mint>>,
+
     #[account(mut)]
     pub owner: Signer<'info>,
     pub token_program: Program<'info, Token>,
@@ -41,22 +44,24 @@ pub fn initialize_program_handler(
     fee_rate_bps: u16,
 ) -> Result<()> {
     let program_state = &mut ctx.accounts.program_state;
+    msg!("initializing program state");
 
     //@ audit make sure the program is not initialized and once it is initialized, it cannot be initialized again
     require!(program_state.initialized == false, ErrorCode::ProgramInitialized);
+    msg!("program state init state is false");
    
     let clock = Clock::get()?;
 
     // Validate fee rate (max 10% = 1000 bps)
     require!(fee_rate_bps <= 1000, crate::error::ErrorCode::FeeTooHigh);
 
-    //@ audit verify owner check here, not sure what owner to put so i wont put a check here yet
-    program_state.owner = ctx.accounts.owner.key();
     program_state.fee_rate_bps = fee_rate_bps;
+    msg!("program state fee rate bps set");
     
     // @ audit verify the usdc mint is the exact mint passed in the constants folder
     program_state.usdc_mint = ctx.accounts.usdc_mint.key();
-    require!(program_state.usdc_mint == usdc_id(), ErrorCode::InvalidMint);
+    // require!(program_state.usdc_mint == usdc_id(), ErrorCode::InvalidMint);
+    msg!("usdc mint set");
 
     program_state.total_fees_collected = 0;
     program_state.initialized = true;

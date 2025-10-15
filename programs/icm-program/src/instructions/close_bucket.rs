@@ -6,24 +6,30 @@ use anchor_lang::prelude::*;
 #[derive(Accounts)]
 #[instruction(bucket_name: String)]
 pub struct CloseBucket<'info> {
+    ///@ audit: Make use of the close account macro for clean closing of the bucket account
+    /// `reference = https://www.anchor-lang.com/docs/references/account-constraints#accountclose--target`
     #[account(
         mut,
+        close = creator,
         seeds = [b"bucket", bucket_name.as_bytes(), creator.key().as_ref()],
         bump = bucket.bump
     )]
     pub bucket: Account<'info, Bucket>,
+
     #[account(
         mut,
         seeds = [b"trading_pool", bucket_name.as_bytes(), creator.key().as_ref()],
         bump
     )]
     pub trading_pool: Account<'info, crate::state::TradingPool>,
+
     #[account(
         mut,
         seeds = [b"creator_profile", creator.key().as_ref()],
         bump
     )]
     pub creator_profile: Account<'info, crate::state::CreatorProfile>,
+
     #[account(mut)]
     pub creator: Signer<'info>,
 }
@@ -31,6 +37,7 @@ pub struct CloseBucket<'info> {
 pub fn close_bucket_handler(ctx: Context<CloseBucket>) -> Result<()> {
     let bucket = &mut ctx.accounts.bucket;
     let clock = Clock::get()?;
+    msg!("closing bucket");
 
     // Validations
     require!(
