@@ -110,8 +110,10 @@ pub fn contribute_to_bucket_handler(
         .checked_sub(fee_amount)
         .ok_or(ErrorCode::InsufficientFunds)?;
 
-    // Transfer fee to program fee vault
-    //@ audit: There is no check for if the fee amount is zero, it simply skip the whole fee _transfer ctx and continues 
+    // fee transfer
+    //@audit: this if statement can be removed.
+    // What this means is if the fee amount is not greater than zero, it will skip the fee sending
+    // and fee is never zero
     if fee_amount > 0 {
         let fee_transfer_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -130,10 +132,7 @@ pub fn contribute_to_bucket_handler(
             .ok_or(ErrorCode::Overflow)?;
     }
 
-    // Transfer net amount to vault
-    //@audit, there is 2 transfers of the same amount from the contributor token account
-    // 1 to the fee vault
-    // 2 to the vault token account 
+    // remaining amount after fee is collected
     let transfer_ctx = CpiContext::new(
         ctx.accounts.token_program.to_account_info(),
         Transfer {

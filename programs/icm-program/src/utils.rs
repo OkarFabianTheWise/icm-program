@@ -2,6 +2,7 @@ use crate::state::{Bucket, BucketStatus, CreatorProfile, PoolPhase, TradingPool}
 use anchor_lang::prelude::*;
 
 /// Utility function to close a bucket and update related accounts
+/// thi
 pub fn close_bucket_util(
     bucket: &mut Account<Bucket>,
     trading_pool: &mut Account<TradingPool>,
