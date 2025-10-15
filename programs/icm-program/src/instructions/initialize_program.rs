@@ -1,4 +1,8 @@
 use crate::state::ProgramState;
+
+// import the usdc mint and verify the mint is the specified mainnet mint address
+use crate::constants::usdc_id;
+
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -35,6 +39,7 @@ pub fn initialize_program_handler(
     fee_rate_bps: u16,
 ) -> Result<()> {
     let program_state = &mut ctx.accounts.program_state;
+   
     let clock = Clock::get()?;
 
     // Validate fee rate (max 10% = 1000 bps)
@@ -42,12 +47,17 @@ pub fn initialize_program_handler(
 
     program_state.owner = ctx.accounts.owner.key();
     program_state.fee_rate_bps = fee_rate_bps;
+    
+    // @ audit verify the usdc mint is the exact mint passed in the constants folder
     program_state.usdc_mint = ctx.accounts.usdc_mint.key();
+    require!(program_state.usdc_mint == usdc_id(), crate::error::ErrorCode::InvalidMint);
+
     program_state.total_fees_collected = 0;
     program_state.initialized = true;
     program_state.created_at = clock.unix_timestamp;
     program_state.bump = ctx.bumps.program_state;
-
+    program_state.counter = 0;
+    program_state.counter += 1;
     msg!("Program initialized with fee rate: {} bps", fee_rate_bps);
 
     Ok(())

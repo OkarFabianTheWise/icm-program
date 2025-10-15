@@ -131,4 +131,5 @@ pub struct ProgramState {
     pub initialized: bool,
     pub created_at: i64,
     pub bump: u8,
+    pub counter : u8,
 }
