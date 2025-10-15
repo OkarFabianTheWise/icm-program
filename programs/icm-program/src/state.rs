@@ -128,8 +128,9 @@ pub struct ProgramState {
     pub fee_rate_bps: u16, // Fee rate in basis points (50 = 0.5%)
     pub usdc_mint: Pubkey,
     pub total_fees_collected: u64,
+    ///## Since the program state is intialized once we keep a state for the program to ensure it can be initialized only once
     pub initialized: bool,
     pub created_at: i64,
     pub bump: u8,
-    pub counter : u8,
 }
+

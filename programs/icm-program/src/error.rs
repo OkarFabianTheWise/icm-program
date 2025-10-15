@@ -62,6 +62,8 @@ pub enum ErrorCode {
     ProfileDoesNotExist,
     #[msg("Program not initialized")]
     ProgramNotInitialized,
+    #[msg("Program already initialized")]
+    ProgramInitialized, 
     #[msg("Invalid mint address")]
     InvalidMint,
     #[msg("Insufficient funds")]
