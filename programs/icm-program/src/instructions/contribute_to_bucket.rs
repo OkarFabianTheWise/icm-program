@@ -9,11 +9,11 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-#[instruction(bucket_name: String)]
+// #[instruction(bucket_name: String)]
 pub struct ContributeToBucket<'info> {
     #[account(
         mut,
-        seeds = [b"bucket", bucket_name.as_bytes(), bucket.creator.as_ref()],
+        seeds = [b"bucket", bucket.name.as_bytes(), bucket.creator.as_ref()],
         bump = bucket.bump
     )]
     pub bucket: Box<Account<'info, Bucket>>,

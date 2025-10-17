@@ -7,7 +7,8 @@ use anchor_spl::token::Token;
 use anchor_spl::token::{self, TokenAccount, Transfer};
 
 #[derive(Accounts)]
-#[instruction(bucket_name: String, token_mint: Pubkey)]
+// @audit: no need for bucket name as it is stored in the seeds from initialization
+#[instruction(token_mint: Pubkey)]
 pub struct ClaimRewards<'info> {
     #[account(
         //@audit , bucket was not declared with mutable status and is used in code as
@@ -15,7 +16,7 @@ pub struct ClaimRewards<'info> {
         // bucket is used as a mutable reference in the code, put the mut for best practices to 
         // changes are made onchain
         mut,
-        seeds = [b"bucket", bucket_name.as_bytes(), bucket.creator.as_ref()],
+        seeds = [b"bucket", bucket.name.as_bytes(), bucket.creator.as_ref()],
         bump = bucket.bump
     )]
     pub bucket: Account<'info, Bucket>,

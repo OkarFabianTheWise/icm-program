@@ -38,6 +38,7 @@ pub enum ErrorCode {
     TradingStillActive,
     #[msg("Bucket is not closed")]
     BucketNotClosed,
+    /// ## @audit: This error is not used in the codebase especially in the contribute function
     #[msg("Unauthorized contributor")]
     UnauthorizedContributor,
     #[msg("No rewards available")]

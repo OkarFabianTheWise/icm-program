@@ -71,9 +71,9 @@ pub struct TradingPool {
     pub created_at: i64,
     ///### @check why is the fundraising deadline == bucket.contribution_deadline and what impact would the fundraising deadline have on the codebase
     pub fundraising_deadline: i64,
-    ///### @check why is this option<i64> and hardcoded to NOne on initialization
+    ///### @check why is this option<i64> and hardcoded to None on initialization
     pub trading_start_time: Option<i64>,
-    ///### @check why is this option<i64> and hardcoded to NOne on initialization
+    ///### @check why is this option<i64> and hardcoded to None on initialization
     pub trading_end_time: Option<i64>,
     pub phase: PoolPhase,
     pub management_fee: u64,
@@ -128,7 +128,6 @@ pub struct ProgramState {
     pub fee_rate_bps: u16, // Fee rate in basis points (50 = 0.5%)
     pub usdc_mint: Pubkey,
     pub total_fees_collected: u64,
-    ///## Since the program state is intialized once we keep a state for the program to ensure it can be initialized only once
     pub initialized: bool,
     pub created_at: i64,
     pub bump: u8,

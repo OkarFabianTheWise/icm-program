@@ -28,19 +28,21 @@ impl DepositReserveLiquidity {
 }
 
 #[derive(Accounts)]
-#[instruction(bucket_name: String)]
+// #[instruction(bucket_name: String)]
 pub struct StartTrading<'info> {
     #[account(
         mut,
-        seeds = [b"bucket", bucket_name.as_bytes(), creator.key().as_ref()],
+        // @audit: Since bucket name is unique and wont change, we can just reuse in the seeds
+        seeds = [b"bucket", bucket.name.as_bytes(), creator.key().as_ref()],
         bump = bucket.bump
     )]
     pub bucket: Account<'info, Bucket>,
 
     #[account(
         mut,
-        seeds = [b"trading_pool", bucket_name.as_bytes(), creator.key().as_ref()],
-        bump
+        seeds = [b"trading_pool", bucket.name.as_bytes(), creator.key().as_ref()],
+        // @audit: let the bump be consistent to have consistent pda each time
+        bump = trading_pool.pool_bump
     )]
     pub trading_pool: Account<'info, crate::state::TradingPool>,
 
@@ -76,7 +78,7 @@ pub struct StartTrading<'info> {
     pub solend_program: UncheckedAccount<'info>,
 }
 
-pub fn start_trading_handler(ctx: Context<StartTrading>, bucket_name: String) -> Result<()> {
+pub fn start_trading_handler(ctx: Context<StartTrading>, _bucket_name: String) -> Result<()> {
     let bucket = &mut ctx.accounts.bucket;
     let clock = Clock::get()?;
 

@@ -56,6 +56,7 @@ pub fn create_bucket_handler(
     max_contribution: u64,
     management_fee: u64,
 ) -> Result<()> {
+    msg!("validating inputs");
     validation::validate_inputs(
         &name,
         &token_mints,
@@ -63,8 +64,10 @@ pub fn create_bucket_handler(
         trading_window_minutes,
         creator_fee_percent,
     )?;
+    msg!("inputs validated");
 
     let clock = Clock::get()?;
+    msg!("initializing bucket");
     initialization::initialize_bucket(
         &mut ctx.accounts.bucket,
         &name,
@@ -77,7 +80,9 @@ pub fn create_bucket_handler(
         clock.unix_timestamp,
         ctx.bumps.bucket,
     )?;
+    msg!("bucket initialized");
 
+    msg!("initializing trading pool");
     initialization::initialize_trading_pool(
         &mut ctx.accounts.trading_pool,
         &ctx.accounts.bucket,
@@ -91,6 +96,8 @@ pub fn create_bucket_handler(
         clock.unix_timestamp,
         ctx.bumps.trading_pool,
     )?;
+    msg!("trading pool initialized");
 
+    msg!("bucket{:?} with name {:?} and trading pool {:?} created successfully", ctx.accounts.bucket.key(), ctx.accounts.bucket.name, ctx.accounts.trading_pool.key());
     Ok(())
 }

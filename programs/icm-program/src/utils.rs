@@ -9,6 +9,7 @@ pub fn close_bucket_util(
     creator_profile: &mut Account<CreatorProfile>,
     now: i64,
 ) {
+    msg!("Bucket close util start");
     bucket.status = BucketStatus::Closed;
     bucket.closed_at = now;
     trading_pool.phase = PoolPhase::Closed;
@@ -18,4 +19,5 @@ pub fn close_bucket_util(
         .total_volume_managed
         .checked_add(bucket.raised_amount)
         .unwrap();
+    msg!("bucket close util ended");
 }
