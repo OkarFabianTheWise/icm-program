@@ -16,6 +16,8 @@ pub enum ErrorCode {
     InvalidTradingWindow,
     #[msg("Creator fee too high (max 20%)")]
     FeeTooHigh,
+    #[msg("Creator fee cannot be lower than 50bps")]
+    FeeIsTooLow,
     #[msg("Duplicate tokens not allowed")]
     DuplicateTokens,
     #[msg("Bucket is not in raising state")]

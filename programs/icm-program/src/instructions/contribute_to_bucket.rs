@@ -9,12 +9,11 @@ use anchor_spl::{
 };
 
 #[derive(Accounts)]
-// #[instruction(bucket_name: String)]
 pub struct ContributeToBucket<'info> {
     #[account(
         mut,
         seeds = [b"bucket", bucket.name.as_bytes(), bucket.creator.as_ref()],
-        bump = bucket.bump
+        bump
     )]
     pub bucket: Box<Account<'info, Bucket>>,
 
@@ -22,7 +21,6 @@ pub struct ContributeToBucket<'info> {
     #[account(
         init_if_needed,
         payer = contributor,
-        // contribution_record: discriminator (8) + contributor (32) + bucket (32) + token_mint (32) + amount (8) + timestamp (8) = 120
         space = 8 + ContributionRecord::INIT_SPACE,
         seeds = [b"contribution", bucket.key().as_ref(), contributor.key().as_ref(), usdc_mint.key().as_ref()],
         bump
@@ -33,7 +31,6 @@ pub struct ContributeToBucket<'info> {
     #[account(
         init_if_needed,
         payer = contributor,
-        // pool_contribution: discriminator (8) + pool_id (32) + contributor (32) + contribution_amount (8) + pool_share_percentage (8) + claimed (1) = 89
         space = 8 + PoolContribution::INIT_SPACE,
         seeds = [b"pool_contribution", bucket.key().as_ref(), contributor.key().as_ref(), usdc_mint.key().as_ref()],
         bump

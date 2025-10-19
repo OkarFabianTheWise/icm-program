@@ -56,14 +56,15 @@ pub fn initialize_program_handler(
    
     let clock = Clock::get()?;
 
-    // Validate fee rate (max 10% = 1000 bps)
-    require!(fee_rate_bps <= 1000, crate::error::ErrorCode::FeeTooHigh);
+    // Validate fee rate (max 20% = 2000 bps)
+    // @audit, in the error enum, it was 20 percent but in code it is 10 percent, changed from 1000 to 2000 bps
+    require!(fee_rate_bps <= 2000 , crate::error::ErrorCode::FeeTooHigh);
+    require!(fee_rate_bps >=50, crate::error::ErrorCode::FeeIsTooLow);
+    program_state.fee_rate_bps = fee_rate_bps;
+    msg!("program state fee rate bps set");
 
     program_state.owner = ctx.accounts.owner.key();
     msg!("program state owner set to deployer");
-    
-    program_state.fee_rate_bps = fee_rate_bps;
-    msg!("program state fee rate bps set");
     
     // @ audit verify the usdc mint is the exact mint passed in the constants folder
     program_state.usdc_mint = ctx.accounts.usdc_mint.key();

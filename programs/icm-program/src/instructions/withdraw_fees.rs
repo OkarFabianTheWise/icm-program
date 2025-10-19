@@ -26,21 +26,11 @@ pub struct WithdrawFees<'info> {
     pub token_program: Program<'info, Token>,
 }
 
-pub fn withdraw_fees_handler(ctx: Context<WithdrawFees>, amount: Option<u64>) -> Result<()> {
+pub fn withdraw_fees_handler(ctx: Context<WithdrawFees>, _amount: Option<u64>) -> Result<()> {
     let program_state = &mut ctx.accounts.program_state;
     let fee_vault = &ctx.accounts.fee_vault;
 
-    // Determine withdrawal amount (all available or specified amount)
-    let withdraw_amount = match amount {
-        Some(amt) => {
-            require!(
-                amt <= fee_vault.amount,
-                crate::error::ErrorCode::InsufficientFunds
-            );
-            amt
-        }
-        None => fee_vault.amount,
-    };
+    let withdraw_amount = fee_vault.amount;
 
     require!(
         withdraw_amount > 0,

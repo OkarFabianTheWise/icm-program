@@ -28,21 +28,19 @@ impl DepositReserveLiquidity {
 }
 
 #[derive(Accounts)]
-// #[instruction(bucket_name: String)]
 pub struct StartTrading<'info> {
     #[account(
         mut,
         // @audit: Since bucket name is unique and wont change, we can just reuse in the seeds
         seeds = [b"bucket", bucket.name.as_bytes(), creator.key().as_ref()],
-        bump = bucket.bump
+        bump
     )]
     pub bucket: Account<'info, Bucket>,
 
     #[account(
         mut,
         seeds = [b"trading_pool", bucket.name.as_bytes(), creator.key().as_ref()],
-        // @audit: let the bump be consistent to have consistent pda each time
-        bump = trading_pool.pool_bump
+        bump
     )]
     pub trading_pool: Account<'info, crate::state::TradingPool>,
 
