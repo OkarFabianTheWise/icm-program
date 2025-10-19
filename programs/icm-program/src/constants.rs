@@ -7,6 +7,14 @@ pub fn usdc_id() -> Pubkey{
     Pubkey::from_str(USDC_MINT).unwrap()
 }
 
+/// Program Deployer Address - Only this address can initialize the program
+/// IMPORTANT: Update this to your actual deployer wallet address before deployment
+/// This is a placeholder address - replace with your deployer's public key
+pub const DEPLOYER_ADDRESS: &str = "11111111111111111111111111111112"; // System Program ID as placeholder
+pub fn deployer_id() -> Pubkey {
+    Pubkey::from_str(DEPLOYER_ADDRESS).unwrap()
+}
+
 /// Vault seed
 pub const VAULT_SEED: &[u8] = b"vault";
 

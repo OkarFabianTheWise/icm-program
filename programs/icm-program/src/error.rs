@@ -69,4 +69,6 @@ pub enum ErrorCode {
     InvalidMint,
     #[msg("Insufficient funds")]
     InsufficientFunds,
+    #[msg("Only the deployer can initialize the program")]
+    UnauthorizedDeployer,
 }

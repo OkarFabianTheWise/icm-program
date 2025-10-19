@@ -2,7 +2,7 @@ use crate::state::ProgramState;
 use crate::error::ErrorCode;
 
 // import the usdc mint and verify the mint is the specified mainnet mint address
-use crate::constants::usdc_id;
+use crate::constants::{usdc_id, deployer_id};
 
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
@@ -32,7 +32,11 @@ pub struct InitializeProgram<'info> {
     #[account(address = usdc_id() @ ErrorCode::InvalidMint)]
     pub usdc_mint: Box<Account<'info, Mint>>,
 
-    #[account(mut)]
+    //@ audit: Only the deployer can initialize the program
+    #[account(
+        mut,
+        address = deployer_id() @ ErrorCode::UnauthorizedDeployer
+    )]
     pub owner: Signer<'info>,
     pub token_program: Program<'info, Token>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -55,6 +59,9 @@ pub fn initialize_program_handler(
     // Validate fee rate (max 10% = 1000 bps)
     require!(fee_rate_bps <= 1000, crate::error::ErrorCode::FeeTooHigh);
 
+    program_state.owner = ctx.accounts.owner.key();
+    msg!("program state owner set to deployer");
+    
     program_state.fee_rate_bps = fee_rate_bps;
     msg!("program state fee rate bps set");
     

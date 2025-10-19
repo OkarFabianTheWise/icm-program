@@ -15,7 +15,7 @@ pub struct CloseBucket<'info> {
         mut,
         close = creator,
         seeds = [b"bucket", bucket.name.as_bytes(), creator.key().as_ref()],
-        bump = bucket.bump
+        bump
     )]
     pub bucket: Box<Account<'info, Bucket>>,
     
@@ -35,7 +35,7 @@ pub struct CloseBucket<'info> {
         mut,
         close = creator,
         seeds = [b"trading_pool", bucket.name.as_bytes(), creator.key().as_ref()],
-        bump = trading_pool.pool_bump
+        bump
     )]
     pub trading_pool: Account<'info, crate::state::TradingPool>,
 
