@@ -92,7 +92,7 @@ pub fn claim_rewards_handler(ctx: Context<ClaimRewards>) -> Result<()> {
             &mut ctx.accounts.trading_pool,
             &mut ctx.accounts.creator_profile,
             clock.unix_timestamp,
-        );
+        )?;
         msg!(
             "Bucket closed by contributor {} after trading elapsed",
             ctx.accounts.contributor.key()
@@ -108,22 +108,32 @@ pub fn claim_rewards_handler(ctx: Context<ClaimRewards>) -> Result<()> {
         contribution_record.contributor == ctx.accounts.contributor.key(),
         ErrorCode::UnauthorizedContributor
     );
+    
+    // Prevent double claiming
+    require!(
+        !ctx.accounts.pool_contribution.claimed,
+        ErrorCode::NoRewardsAvailable
+    );
 
-    // Calculate proportional share
+    // Calculate proportional share with proper error handling
     let vault_balance = ctx.accounts.vault_token_account.amount;
+    
+    // @audit: Added division by zero protection and proper error handling
+    require!(bucket.raised_amount > 0, ErrorCode::InvalidAmount);
+    
     let user_share = (contribution_record.amount as u128)
         .checked_mul(vault_balance as u128)
-        .unwrap()
+        .ok_or(ErrorCode::Overflow)?
         .checked_div(bucket.raised_amount as u128)
-        .unwrap() as u64;
+        .ok_or(ErrorCode::Overflow)? as u64;
 
     // Calculate creator fee if this is creator claiming
     let amount_to_transfer = if contribution_record.contributor == bucket.creator {
         let creator_fee = (vault_balance as u128)
             .checked_mul(bucket.creator_fee_percent as u128)
-            .unwrap()
+            .ok_or(ErrorCode::Overflow)?
             .checked_div(10000)
-            .unwrap() as u64;
+            .ok_or(ErrorCode::Overflow)? as u64;
         user_share
             .checked_add(creator_fee)
             .ok_or(ErrorCode::Overflow)?
@@ -132,6 +142,12 @@ pub fn claim_rewards_handler(ctx: Context<ClaimRewards>) -> Result<()> {
     };
 
     require!(amount_to_transfer > 0, ErrorCode::NoRewardsAvailable);
+    
+    // Validate sufficient vault balance
+    require!(
+        vault_balance >= amount_to_transfer,
+        ErrorCode::InsufficientVaultBalance
+    );
 
     // Calculate fee on rewards (0.5% from program state)
     let program_state = &mut ctx.accounts.program_state;

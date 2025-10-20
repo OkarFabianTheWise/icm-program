@@ -12,6 +12,7 @@ pub fn initialize_bucket(
     creator_fee_percent: u16,
     management_fee: u64,
     creator: &Signer,
+    creator_profile: &Account<crate::state::CreatorProfile>,
     now: i64,
     bump: u8,
 ) -> Result<()> {
@@ -27,10 +28,8 @@ pub fn initialize_bucket(
     bucket.closed_at = 0;
     bucket.bump = bump;
 
-    // Derive the creator profile PDA
-    let (creator_profile_pda, _) =
-        Pubkey::find_program_address(&[b"creator_profile", creator.key().as_ref()], &crate::ID);
-    bucket.creator_profile = creator_profile_pda;
+    // Use the validated creator profile from accounts context
+    bucket.creator_profile = creator_profile.key();
     bucket.performance_fee = management_fee;
     Ok(())
 }

@@ -68,7 +68,6 @@ pub fn initialize_program_handler(
     
     // @ audit verify the usdc mint is the exact mint passed in the constants folder
     program_state.usdc_mint = ctx.accounts.usdc_mint.key();
-    // require!(program_state.usdc_mint == usdc_id(), ErrorCode::InvalidMint);
     msg!("usdc mint set");
 
     program_state.total_fees_collected = 0;

@@ -118,7 +118,7 @@ pub fn close_bucket_handler(ctx: Context<CloseBucket>) -> Result<()> {
     let bucket_mut = &mut ctx.accounts.bucket;
     let trading_pool_mut = &mut ctx.accounts.trading_pool;
     let creator_profile_mut = &mut ctx.accounts.creator_profile;
-    close_bucket_util(bucket_mut, trading_pool_mut, creator_profile_mut, clock.unix_timestamp);
+    close_bucket_util(bucket_mut, trading_pool_mut, creator_profile_mut, clock.unix_timestamp)?;
 
     msg!("Bucket '{}' closed for claims", bucket_name_for_log);
     Ok(())

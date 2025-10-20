@@ -17,7 +17,7 @@ pub struct ContributeToBucket<'info> {
     )]
     pub bucket: Box<Account<'info, Bucket>>,
 
-    ///### Dangerous init_if_needed
+    //@ audit: Using init_if_needed with proper validation to handle multiple contributions safely
     #[account(
         init_if_needed,
         payer = contributor,
@@ -27,7 +27,7 @@ pub struct ContributeToBucket<'info> {
     )]
     pub contribution_record: Box<Account<'info, ContributionRecord>>,
 
-    ///### Dangerous init_if_needed
+    //@ audit: Using init_if_needed with proper validation to handle multiple contributions safely
     #[account(
         init_if_needed,
         payer = contributor,
@@ -107,10 +107,10 @@ pub fn contribute_to_bucket_handler(
         .checked_sub(fee_amount)
         .ok_or(ErrorCode::InsufficientFunds)?;
 
-    // fee transfer
-    //@audit: this if statement can be removed.
-    // What this means is if the fee amount is not greater than zero, it will skip the fee sending
-    // and fee is never zero
+    // Fee transfer with defensive programming
+    //@audit: Keeping the fee_amount > 0 check for defensive programming
+    // Even though fee should never be zero with current logic, this prevents 
+    // unnecessary transfers and protects against future changes
     if fee_amount > 0 {
         let fee_transfer_ctx = CpiContext::new(
             ctx.accounts.token_program.to_account_info(),
@@ -140,27 +140,44 @@ pub fn contribute_to_bucket_handler(
     );
     transfer(transfer_ctx, net_amount)?;
 
-    // Update or create contribution record (using net amount for bucket tracking)
+    // Update or create contribution record with proper validation
     let contribution_record = &mut ctx.accounts.contribution_record;
-    if contribution_record.contributor == Pubkey::default() {
-        // New contribution
-        contribution_record.contributor = ctx.accounts.contributor.key();
-        contribution_record.bucket = bucket.key();
-        contribution_record.token_mint = ctx.accounts.usdc_mint.key();
-        contribution_record.amount = net_amount;
-        contribution_record.timestamp = clock.unix_timestamp;
-        // Increment contributor_count for new contributor
-        bucket.contributor_count = bucket
-            .contributor_count
-            .checked_add(1)
-            .ok_or(ErrorCode::Overflow)?;
-    } else {
+    
+    // Validate existing record if it exists (safety check for init_if_needed)
+    if contribution_record.contributor != Pubkey::default() {
+        // Existing record - validate it belongs to the same contributor and bucket
+        require!(
+            contribution_record.contributor == ctx.accounts.contributor.key(),
+            ErrorCode::UnauthorizedContributor
+        );
+        require!(
+            contribution_record.bucket == bucket.key(),
+            ErrorCode::InvalidBucketStatus
+        );
+        require!(
+            contribution_record.token_mint == ctx.accounts.usdc_mint.key(),
+            ErrorCode::InvalidTokenMint
+        );
+        
         // Add to existing contribution
         contribution_record.amount = contribution_record
             .amount
             .checked_add(net_amount)
             .ok_or(ErrorCode::Overflow)?;
-        contribution_record.timestamp = clock.unix_timestamp; // update timestamp if desired
+        contribution_record.timestamp = clock.unix_timestamp;
+    } else {
+        // New contribution - initialize record
+        contribution_record.contributor = ctx.accounts.contributor.key();
+        contribution_record.bucket = bucket.key();
+        contribution_record.token_mint = ctx.accounts.usdc_mint.key();
+        contribution_record.amount = net_amount;
+        contribution_record.timestamp = clock.unix_timestamp;
+        
+        // Increment contributor_count for new contributor
+        bucket.contributor_count = bucket
+            .contributor_count
+            .checked_add(1)
+            .ok_or(ErrorCode::Overflow)?;
     }
 
     // Update raised_amount with net amount (after fees)
@@ -169,22 +186,33 @@ pub fn contribute_to_bucket_handler(
         .checked_add(net_amount)
         .ok_or(ErrorCode::Overflow)?;
 
+    // Update or create pool contribution with proper validation
     let pool_contribution = &mut ctx.accounts.pool_contribution;
-
-    // Initialize or update pool contribution
-    if pool_contribution.pool_id == Pubkey::default() {
-        // New pool contribution
-        pool_contribution.pool_id = bucket.key();
-        pool_contribution.contributor = ctx.accounts.contributor.key();
-        pool_contribution.contribution_amount = net_amount;
-        pool_contribution.pool_share_percentage = 0; // Will be calculated later when trading starts
-        pool_contribution.claimed = false;
-    } else {
+    
+    // Validate existing record if it exists (safety check for init_if_needed)
+    if pool_contribution.pool_id != Pubkey::default() {
+        // Existing record - validate it belongs to the same contributor and pool
+        require!(
+            pool_contribution.contributor == ctx.accounts.contributor.key(),
+            ErrorCode::UnauthorizedContributor
+        );
+        require!(
+            pool_contribution.pool_id == bucket.key(),
+            ErrorCode::InvalidBucketStatus
+        );
+        
         // Add to existing pool contribution
         pool_contribution.contribution_amount = pool_contribution
             .contribution_amount
             .checked_add(net_amount)
             .ok_or(ErrorCode::Overflow)?;
+    } else {
+        // New pool contribution - initialize record
+        pool_contribution.pool_id = bucket.key();
+        pool_contribution.contributor = ctx.accounts.contributor.key();
+        pool_contribution.contribution_amount = net_amount;
+        pool_contribution.pool_share_percentage = 0; // Will be calculated later when trading starts
+        pool_contribution.claimed = false;
     }
 
     msg!(

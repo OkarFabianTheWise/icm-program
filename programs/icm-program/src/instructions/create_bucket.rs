@@ -1,4 +1,4 @@
-use crate::state::{Bucket, TradingPool};
+use crate::state::{Bucket, TradingPool, CreatorProfile};
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -35,6 +35,13 @@ pub struct CreateBucket<'info> {
         associated_token::authority = bucket,
     )]
     pub vault_token_account: Box<Account<'info, TokenAccount>>,
+
+    //@ audit: Ensure creator profile exists before allowing bucket creation
+    #[account(
+        seeds = [b"creator_profile", creator.key().as_ref()],
+        bump
+    )]
+    pub creator_profile: Account<'info, CreatorProfile>,
 
     pub usdc_mint: Box<Account<'info, Mint>>,
     #[account(mut)]
@@ -77,6 +84,7 @@ pub fn create_bucket_handler(
         creator_fee_percent,
         management_fee,
         &ctx.accounts.creator,
+        &ctx.accounts.creator_profile,
         clock.unix_timestamp,
         ctx.bumps.bucket,
     )?;
