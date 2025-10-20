@@ -22,3 +22,6 @@ pub const VAULT_SEED: &[u8] = b"vault";
 pub fn jupiter_program_id() -> Pubkey {
     Pubkey::from_str("JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4").unwrap()
 }
+
+/// Bucket creation fee in lamports (0.7 USDC = 700,000 micro USDC)
+pub const BUCKET_CREATION_FEE: u64 = 700_000; // 0.7 USDC in micro units (6 decimals)

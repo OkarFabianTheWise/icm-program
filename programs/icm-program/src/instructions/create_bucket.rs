@@ -1,7 +1,9 @@
-use crate::state::{Bucket, TradingPool, CreatorProfile};
+use crate::state::{Bucket, TradingPool, CreatorProfile, ProgramState};
+use crate::constants::{usdc_id, BUCKET_CREATION_FEE};
+use crate::error::ErrorCode;
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
-use anchor_spl::token::{Mint, Token, TokenAccount};
+use anchor_spl::token::{transfer, Mint, Token, TokenAccount, Transfer};
 
 mod initialization;
 mod validation;
@@ -43,6 +45,24 @@ pub struct CreateBucket<'info> {
     )]
     pub creator_profile: Account<'info, CreatorProfile>,
 
+    #[account(
+        mut,
+        seeds = [b"program_state"],
+        bump = program_state.bump
+    )]
+    pub program_state: Box<Account<'info, ProgramState>>,
+
+    #[account(
+        mut,
+        associated_token::mint = usdc_mint,
+        associated_token::authority = program_state,
+    )]
+    pub fee_vault: Box<Account<'info, TokenAccount>>,
+
+    #[account(mut)]
+    pub creator_token_account: Box<Account<'info, TokenAccount>>,
+
+    #[account(address = usdc_id())]
     pub usdc_mint: Box<Account<'info, Mint>>,
     #[account(mut)]
     pub creator: Signer<'info>,
@@ -63,6 +83,11 @@ pub fn create_bucket_handler(
     max_contribution: u64,
     management_fee: u64,
 ) -> Result<()> {
+    let program_state = &mut ctx.accounts.program_state;
+    
+    // Validate program is initialized
+    require!(program_state.initialized, ErrorCode::ProgramNotInitialized);
+    
     msg!("validating inputs");
     validation::validate_inputs(
         &name,
@@ -72,6 +97,25 @@ pub fn create_bucket_handler(
         creator_fee_percent,
     )?;
     msg!("inputs validated");
+
+    // Collect bucket creation fee (0.7 USDC)
+    msg!("collecting bucket creation fee: {} micro USDC", BUCKET_CREATION_FEE);
+    let fee_transfer_ctx = CpiContext::new(
+        ctx.accounts.token_program.to_account_info(),
+        Transfer {
+            from: ctx.accounts.creator_token_account.to_account_info(),
+            to: ctx.accounts.fee_vault.to_account_info(),
+            authority: ctx.accounts.creator.to_account_info(),
+        },
+    );
+    transfer(fee_transfer_ctx, BUCKET_CREATION_FEE)?;
+
+    // Update total fees collected
+    program_state.total_fees_collected = program_state
+        .total_fees_collected
+        .checked_add(BUCKET_CREATION_FEE)
+        .ok_or(ErrorCode::Overflow)?;
+    msg!("bucket creation fee collected successfully");
 
     let clock = Clock::get()?;
     msg!("initializing bucket");
