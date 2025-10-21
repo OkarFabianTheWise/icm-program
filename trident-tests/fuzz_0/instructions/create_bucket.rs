@@ -12,11 +12,14 @@ pub struct CreateBucketInstruction {
 }
 
 /// Instruction Accounts
-#[derive(Debug, Clone, TridentAccounts, Default)]
+#[derive(Arbitrary, Debug, Clone, TridentAccounts, Default)]
 #[instruction_data(CreateBucketInstructionData)]
 #[storage(FuzzAccounts)]
 pub struct CreateBucketInstructionAccounts {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [b"bucket", ]
+    )]
     pub bucket: TridentAccount,
 
     #[account(mut)]
@@ -72,4 +75,8 @@ pub struct CreateBucketInstructionData {
 /// Docs: https://ackee.xyz/trident/docs/latest/start-fuzzing/writting-fuzz-test/
 impl InstructionHooks for CreateBucketInstruction {
     type IxAccounts = FuzzAccounts;
+
+    fn set_data(&mut self, trident: &mut trident, fuzz_accounts: &mut Self::IxAccounts){
+        self.data.input = trident.gen_range(0..=u8::MAX);
+    }
 }

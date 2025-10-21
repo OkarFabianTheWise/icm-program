@@ -1,4 +1,7 @@
 use crate::state::{Bucket, TradingPool};
+use crate::constants::usdc_id;
+use crate::error::ErrorCode;
+
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{Mint, Token, TokenAccount};
@@ -36,6 +39,8 @@ pub struct CreateBucket<'info> {
     )]
     pub vault_token_account: Box<Account<'info, TokenAccount>>,
 
+    ///@ audit: Assert the usdc mint is equal to the passed in usdc mint address
+    #[account(address = usdc_id() @ ErrorCode::InvalidMint)]
     pub usdc_mint: Box<Account<'info, Mint>>,
     #[account(mut)]
     pub creator: Signer<'info>,
