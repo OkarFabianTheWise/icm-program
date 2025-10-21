@@ -10,6 +10,15 @@ edition = "2021"
 borsh = "1.5.3"
 solana-sdk = "~2.0"
 
+anchor-lang = { version = "0.30.1", default-features = true, features = [
+    "init-if-needed",
+    "event-cpi"
+] }
+anchor-spl = { version = "0.30.1", default-features = true }
+bytemuck = { version = "1.14", features = ["derive"] }
+solana-program = "1.16.0"
+jupiter_interface = "0.2.1"
+
 [dependencies.trident-fuzz]
 version = "0.11.0"
 

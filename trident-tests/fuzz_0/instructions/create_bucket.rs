@@ -77,6 +77,14 @@ impl InstructionHooks for CreateBucketInstruction {
     type IxAccounts = FuzzAccounts;
 
     fn set_data(&mut self, trident: &mut trident, fuzz_accounts: &mut Self::IxAccounts){
-        self.data.input = trident.gen_range(0..=u8::MAX);
+        // self.data.name = 
+        // self.data.token_mints = 
+        self.data.contribution_window_minutes = trident.gen_range(0..=u32::MAX);
+        self.data.trading_window_minutes = trident.gen_range(0..=u32::MAX);
+        self.data.creator_fee_percent = trident.gen_range(0..=u16::MAX);
+        self.data.target_amount = trident.gen_range(0..=u64::MAX);
+        self.data.min_contribution = trident.gen_range(0..=u64::MAX);
+        self.data.max_contribution = trident.gen_range(0..=u64::MAX);
+        self.data.management_fee = trident.gen_range(0..=u16::MAX);
     }
 }
