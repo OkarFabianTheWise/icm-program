@@ -30,7 +30,7 @@ pub struct Bucket {
 
     pub creator_profile: TridentPubkey,
 
-    pub performance_fee: u16,
+    pub performance_fee: u64,
 
     pub raised_amount: u64,
 
@@ -174,5 +174,5 @@ pub struct TradingPool {
 
     pub phase: PoolPhase,
 
-    pub management_fee: u16,
+    pub management_fee: u64,
 }

@@ -14,10 +14,12 @@ pub fn close_bucket_util(
     bucket.closed_at = now;
     trading_pool.phase = PoolPhase::Closed;
     trading_pool.trading_end_time = Some(now);
-    creator_profile.successful_pools.checked_add(1).unwrap();
-    creator_profile
+    creator_profile.successful_pools = creator_profile.successful_pools
+        .checked_add(1)
+        .unwrap_or(creator_profile.successful_pools);
+    creator_profile.total_volume_managed = creator_profile
         .total_volume_managed
         .checked_add(bucket.raised_amount)
-        .unwrap();
+        .unwrap_or(creator_profile.total_volume_managed);
     msg!("bucket close util ended");
 }

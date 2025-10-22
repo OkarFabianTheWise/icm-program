@@ -31,6 +31,7 @@ pub struct ContributeToBucketInstructionAccounts {
     #[account(mut)]
     pub vault_token_account: TridentAccount,
 
+    #[account(address = "2RgRJx3z426TMCL84ZMXTRVCS5ee7iGVE4ogqcUAd3tg")]
     pub usdc_mint: TridentAccount,
 
     #[account(mut)]

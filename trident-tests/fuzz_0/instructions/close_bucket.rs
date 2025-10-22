@@ -20,6 +20,11 @@ pub struct CloseBucketInstructionAccounts {
     pub bucket: TridentAccount,
 
     #[account(mut)]
+    pub vault_token_account: TridentAccount,
+
+    pub program_state: TridentAccount,
+
+    #[account(mut)]
     pub trading_pool: TridentAccount,
 
     #[account(mut)]
@@ -27,6 +32,9 @@ pub struct CloseBucketInstructionAccounts {
 
     #[account(mut, signer)]
     pub creator: TridentAccount,
+
+    #[account(address = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")]
+    pub token_program: TridentAccount,
 }
 
 /// Instruction Data

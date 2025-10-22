@@ -48,10 +48,18 @@ pub struct ClaimRewards<'info> {
     )]
     pub creator_profile: Account<'info, crate::state::CreatorProfile>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        associated_token::mint = program_state.usdc_mint,
+        associated_token::authority = contributor,
+    )]
     pub contributor_token_account: Account<'info, TokenAccount>,
 
-    #[account(mut)]
+    #[account(
+        mut,
+        associated_token::mint = program_state.usdc_mint,
+        associated_token::authority = bucket,
+    )]
     pub vault_token_account: Account<'info, TokenAccount>,
 
     #[account(
@@ -113,17 +121,17 @@ pub fn claim_rewards_handler(ctx: Context<ClaimRewards>) -> Result<()> {
     let vault_balance = ctx.accounts.vault_token_account.amount;
     let user_share = (contribution_record.amount as u128)
         .checked_mul(vault_balance as u128)
-        .unwrap()
+        .ok_or(ErrorCode::Overflow)?
         .checked_div(bucket.raised_amount as u128)
-        .unwrap() as u64;
+        .ok_or(ErrorCode::Overflow)? as u64;
 
     // Calculate creator fee if this is creator claiming
     let amount_to_transfer = if contribution_record.contributor == bucket.creator {
         let creator_fee = (vault_balance as u128)
             .checked_mul(bucket.creator_fee_percent as u128)
-            .unwrap()
+            .ok_or(ErrorCode::Overflow)?
             .checked_div(10000)
-            .unwrap() as u64;
+            .ok_or(ErrorCode::Overflow)? as u64;
         user_share
             .checked_add(creator_fee)
             .ok_or(ErrorCode::Overflow)?

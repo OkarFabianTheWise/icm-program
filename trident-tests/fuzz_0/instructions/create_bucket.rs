@@ -12,14 +12,11 @@ pub struct CreateBucketInstruction {
 }
 
 /// Instruction Accounts
-#[derive(Arbitrary, Debug, Clone, TridentAccounts, Default)]
+#[derive(Debug, Clone, TridentAccounts, Default)]
 #[instruction_data(CreateBucketInstructionData)]
 #[storage(FuzzAccounts)]
 pub struct CreateBucketInstructionAccounts {
-    #[account(
-        mut,
-        seeds = [b"bucket", ]
-    )]
+    #[account(mut)]
     pub bucket: TridentAccount,
 
     #[account(mut)]
@@ -28,6 +25,7 @@ pub struct CreateBucketInstructionAccounts {
     #[account(mut)]
     pub vault_token_account: TridentAccount,
 
+    #[account(address = "2RgRJx3z426TMCL84ZMXTRVCS5ee7iGVE4ogqcUAd3tg")]
     pub usdc_mint: TridentAccount,
 
     #[account(mut, signer)]
@@ -39,7 +37,7 @@ pub struct CreateBucketInstructionAccounts {
     #[account(address = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL")]
     pub associated_token_program: TridentAccount,
 
-    #[account(address = "11111111111111111111111111111111")]
+    #[account(address = "11111111111111111111111111111111", skip_snapshot)]
     pub system_program: TridentAccount,
 }
 
@@ -62,7 +60,7 @@ pub struct CreateBucketInstructionData {
 
     pub max_contribution: u64,
 
-    pub management_fee: u16,
+    pub management_fee: u64,
 }
 
 /// Implementation of instruction setters for fuzzing
@@ -76,15 +74,13 @@ pub struct CreateBucketInstructionData {
 impl InstructionHooks for CreateBucketInstruction {
     type IxAccounts = FuzzAccounts;
 
-    fn set_data(&mut self, trident: &mut trident, fuzz_accounts: &mut Self::IxAccounts){
-        // self.data.name = 
-        // self.data.token_mints = 
-        self.data.contribution_window_minutes = trident.gen_range(0..=u32::MAX);
-        self.data.trading_window_minutes = trident.gen_range(0..=u32::MAX);
-        self.data.creator_fee_percent = trident.gen_range(0..=u16::MAX);
-        self.data.target_amount = trident.gen_range(0..=u64::MAX);
-        self.data.min_contribution = trident.gen_range(0..=u64::MAX);
-        self.data.max_contribution = trident.gen_range(0..=u64::MAX);
-        self.data.management_fee = trident.gen_range(0..=u16::MAX);
+    fn set_data(&mut self, trident: &mut Trident, fuzz_accounts: &mut Self::IxAccounts) {}
+
+    fn set_remaining_accounts(
+        &mut self,
+        trident: &mut Trident,
+        fuzz_accounts: &mut Self::IxAccounts,
+    ) {
     }
+
 }

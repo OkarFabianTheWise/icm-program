@@ -17,7 +17,6 @@ pub struct ContributeToBucket<'info> {
     )]
     pub bucket: Box<Account<'info, Bucket>>,
 
-    ///### Dangerous init_if_needed
     #[account(
         init_if_needed,
         payer = contributor,
@@ -27,7 +26,6 @@ pub struct ContributeToBucket<'info> {
     )]
     pub contribution_record: Box<Account<'info, ContributionRecord>>,
 
-    ///### Dangerous init_if_needed
     #[account(
         init_if_needed,
         payer = contributor,

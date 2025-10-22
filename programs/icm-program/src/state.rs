@@ -26,7 +26,7 @@ pub struct Bucket {
     pub closed_at: i64,
     pub bump: u8,
     pub creator_profile: Pubkey,
-    // @ make all fee of type u64 consistently
+    // @audit: make all fee of type u64 consistently
     pub performance_fee: u64,
     pub raised_amount: u64,
     pub contributor_count: u32,

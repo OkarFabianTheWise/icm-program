@@ -22,9 +22,10 @@ pub struct InitializeProgramInstructionAccounts {
     #[account(mut)]
     pub fee_vault: TridentAccount,
 
+    #[account(address = "2RgRJx3z426TMCL84ZMXTRVCS5ee7iGVE4ogqcUAd3tg")]
     pub usdc_mint: TridentAccount,
 
-    #[account(mut, signer)]
+    #[account(mut, signer, address = "11111111111111111111111111111112")]
     pub owner: TridentAccount,
 
     #[account(address = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA")]
